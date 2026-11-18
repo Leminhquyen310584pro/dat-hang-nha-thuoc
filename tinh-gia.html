@@ -995,10 +995,37 @@ function progSuat(d, p, F){
   if (p.fixed != null || !(F > 0) || !(p.F > 0)) return 1;
   return Math.max(1, Math.floor(F / p.F + 1e-9));
 }
+/* Phần CTKM QUÝ của chương trình đặc biệt CỘNG CT Quý (người dùng bảo 18/11/2026: "áp dụng đồng thời thì cộng quà của CTKM quý"): CÙNG cách tính với App đặt hàng (calcQuyRaw) và chế độ CTKM quý:
+   CK quý khi đủ mốc; quà quý theo suất TIỀN sau CK 1% (hoặc theo số mua khi sản phẩm không có mốc tiền); quà người dùng đã chọn (GPICK, ô quà); luật Sunplay 550k; quà Caring / luật nhóm Micellar.
+   Chương trình đổi quà quý (p.qg, vd Lipcare: 1 Sheer Color thường) thì thay quà mặc định bằng quà đó. Trước đây tính theo SỐ MUA của Excel (floor(F ÷ số mua quý)), nên lệch App 10 dòng. */
+function inferNp(d){
+  if (!(d.e > 0) || d.n > 0 || !/^✓.*tặng cùng loại$/.test(String(d.o || ''))) return 0;
+  const m = /mua (?:mỗi|đơn hàng)\s*([\d.]+)\s*vnđ\s*cùng loại[^\n]*?tặng\s*(\d+)\s*cùng loại/i.exec(String(d.d || ''));
+  return m && +m[1].replace(/\./g, '') === d.e ? +m[2] : 0;
+}
+function quyPartFor(d, p, F){
+  const net = F * cNet(d), out = { H: 0, O: null, pO: null, N: 0, X: [] };
+  if ((d.h || 0) > 0 && (d.e > 0 ? net >= d.e - 1e-9 : (d.f > 0 ? F >= d.f : true))) out.H = d.h;
+  const s5 = sp550X(d, F, true);
+  if (s5) out.X = s5.X.slice();
+  else {
+    let og = null, per = 0;
+    if (p.qg && giftIdx(p.qg) !== '') { og = GIFTS[+giftIdx(p.qg)]; per = d.n > 0 ? d.n : 0; }
+    else {
+      const picked = (GPICK[d.w] && $('o').value !== '') ? $('o').value : null, ea = picked != null ? parseEach(d) : null;
+      og = picked != null ? GIFTS[+picked] : (d.o ? (GIFTS[+giftIdx(d.o)] || null) : null);
+      per = picked != null ? ((ea && (ea.gifts.find(g => String(g.gi) === picked) || {}).n) || d.n || 1) : (d.n > 0 ? d.n : inferNp(d));
+    }
+    let sq = d.e > 0 ? Math.floor(net / d.e + 1e-9) : (d.f > 0 ? Math.floor(F / d.f + 1e-9) : 0);
+    if (THR_OPTS[d.w]) sq = Math.min(sq, 1);   // lựa chọn MỘT ưu đãi (Selsun 60ml, Gokujyun): không nhân theo suất
+    if (og && per > 0) { out.O = og; out.pO = og.p; out.N = sq * per; }
+  }
+  caringX(d, F, null, true).forEach(x => out.X.push(x));
+  return out;
+}
 function progVals(d, p, F, uf){
-  const v = { F, M: numOrNull('m') == null ? d.m : numOrNull('m'), G: (numOrNull('g') || 0) / 100, H: p.stack ? (d.h || 0) : 0, I: p.ck || 0, J: 0, N: 0, K: null, O: null, pK: null, pO: null, X: [] };
-  if (p.stack && p.qg && giftIdx(p.qg) !== '') { const og = GIFTS[+giftIdx(p.qg)]; v.O = og; v.pO = og.p; v.N = d.n > 0 ? (d.f > 0 ? Math.floor(F / d.f) : 1) * d.n : 0; }
-  else if (p.stack && d.o && d.n > 0) { const og = GIFTS[+giftIdx(d.o)]; if (og) { v.O = og; v.pO = og.p; v.N = d.f > 0 ? Math.floor(F / d.f) * d.n : d.n; } }
+  const v = { F, M: numOrNull('m') == null ? d.m : numOrNull('m'), G: (numOrNull('g') || 0) / 100, H: 0, I: p.ck || 0, J: 0, N: 0, K: null, O: null, pK: null, pO: null, X: [] };
+  if (p.stack) { const q = quyPartFor(d, p, F); v.H = q.H; v.O = q.O; v.pO = q.pO; v.N = q.N; q.X.forEach(x => v.X.push(x)); }
   const pri = progPrimary(d, p);
   const kk = progSuat(d, p, F);
   const addGift = (n, gift, price, sameFlag, noScale) => {
@@ -1588,8 +1615,8 @@ function moneyOpts(d){   // luật tiền (cùng loại và luật nhóm) của 
    Màn một sản phẩm chỉ tính tiền của chính sản phẩm đang xem; quà (b), (c) do người dùng chọn rồi mới trừ vào giá (qua mảng X của computeP). */
 /* Sunplay 550.000đ (người dùng chốt 17/11/2026: "suất này chỉ được tặng quà của suất này thôi"): đủ mốc 550k thì CHỈ nhận 2 Clear White 25g × số suất 550k, KHÔNG cộng quà suất 430.000đ Sunplay/Oxy */
 const sp550Rule = d => rules_().find(r => /550\.000đ · Sunplay/.test(r.name) && r.members.has(d.w)) || null;
-function sp550X(d, F){
-  if (mode !== 'thr') return null;
+function sp550X(d, F, any){
+  if (mode !== 'thr' && !any) return null;
   const r = sp550Rule(d); if (!r || !r.opts[0]) return null;
   const k = Math.floor(F * cNet(d) / r.thr + 1e-9); if (k < 1) return null;
   const o = r.opts[0], g = GIFTS[o.gi];
@@ -1599,14 +1626,14 @@ function sp550X(d, F){
    người dùng bảo 18/11/2026: chữ "bất kỳ" = một sản phẩm đủ mốc cũng nhận quà nhóm). Cùng khối chọn quà riêng, cộng với suất cùng loại 480k. */
 const isCaringRule = r => /Caring/i.test(r.name);
 const ruleLabel = r => isCaringRule(r) ? 'luật Caring' : 'luật nhóm rửa mặt/tẩy trang';
-function caringOf(d){
-  if (mode !== 'thr') return null;
+function caringOf(d, any){
+  if (mode !== 'thr' && !any) return null;
   const rs = rules_().filter(r => r.members.has(d.w) && (isCaringRule(r) || (/rửa mặt và dòng nước tẩy trang/i.test(r.name) && r.thr !== d.e))).sort((x, y) => y.thr - x.thr);
   return rs.length ? { hi: rs[0], lo: rs[1] || null } : null;
 }
 const caringSuat = (d, F, r) => Math.floor(F * cNet(d) / r.thr + 1e-9);
-function caringX(d, F, picks){
-  const c = caringOf(d); if (!c) return [];
+function caringX(d, F, picks, any){
+  const c = caringOf(d, any); if (!c) return [];
   const pk = picks || CX[d.w] || {}, out = [], sameGi = GIFTS.findIndex(g => g.ty === 's' && g.k === d.b);
   [['hi', c.hi], ['lo', c.lo]].forEach(([key, r]) => {
     if (!r || pk[key] == null || pk[key] === '') return;
