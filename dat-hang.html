@@ -501,6 +501,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 .vr-rem{margin-top:6px;font-size:12px;color:var(--muted)}
 
 .vr-p{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+/* chọn quà CTKM quý của luật "bất kỳ" ở màn một sản phẩm (nút .cxb.gkb trong .cx-btns): giống nút thrbtn nhưng KHÔNG mang lớp thrbtn (test tìm nút đặt đơn hàng theo thrbtn) */
+.cx-btns .gkb{border:1px solid var(--line,#d7e3e0);border-radius:12px;background:var(--surface-2,#fff);color:inherit;cursor:pointer}
 
 </style>
 </head>
@@ -656,10 +658,59 @@ function inferN(d) {
   const m = /mua (?:mỗi|đơn hàng)\s*([\d.]+)\s*vnđ\s*cùng loại[^\n]*?tặng\s*(\d+)\s*cùng loại/i.exec(String(d.d || ''));
   return m && +m[1].replace(/\./g, '') === d.e ? +m[2] : 0;
 }
+/* ---- Chọn quà của luật "bất kỳ" ở màn MỘT sản phẩm (người dùng bảo 18/11/2026; giống ô quà của trang Tính giá, hàm moneyOpts) ----
+   Nguyên tắc: chữ "bất kỳ" = áp dụng cả đơn hỗn hợp lẫn một sản phẩm đủ mốc E của chính nó. Mỗi suất 1 quà; Cùng loại chung hàng với quà khác.
+   Luật nhóm KHÔNG có chữ "bất kỳ" (trị mụn 320k) chỉ cho đơn hỗn hợp; luật Caring có khối riêng (cxOf); Sunplay 550k tự áp dụng (p550). */
+const gkOf = {};   // mã sản phẩm -> chỉ số quà (GIFTS) người dùng chọn thay cho quà mặc định ở cột O
+const GK_KEY = 'dat-hang-quaquy-v1';
+const GK_MONEY = /^(?:Mua\s+mỗi|Mua\s+đơn\s+hàng|Mua\s+từ|Đơn\s+hàng)\s+([\d.]+)\s*vnđ\s+(.+?)\s*(?:==>|=>|→)\s*(.+)$/i;
+function gOptsOf(d) {
+  if (!(d && d.e > 0) || d._opt || ORDER_OPTS[d.w] || NEEDS_TINH_GIA.has(d.w)) return [];
+  const gifts = [], sameGi = GIFTS.findIndex(g => g.ty === 's' && g.k === d.b);
+  const add = (gi, n, label, same) => { if (gi >= 0 && !gifts.some(x => x.gi === gi)) gifts.push({ gi, n, label, same: !!same }); };
+  if (/mỗi/i.test(String(d.d || ''))) {   // 17 sản phẩm "Mua mỗi" (thuốc nhỏ mắt 585k, Dược phẩm 320k): đọc từng dòng như parseEach của trang Tính giá
+    let any = false;
+    String(d.d).split(/\n|\s\*\s/).map(x => x.replace(/^\*\s*/, '').trim()).filter(Boolean).forEach(line => {
+      const m = line.match(/^Mua mỗi\s+([\d.]+)\s*vnđ\s+(.+?)\s*(?:==>|=>|→)\s*tặng\s+(.+)$/i); if (!m) return;
+      let ops = m[3].trim(), note = ''; const pm = ops.match(/^(.*?)\s*\((.*)\)\s*$/); if (pm) { ops = pm[1]; note = pm[2]; }
+      const scope = m[2].trim(); let applies = /^cùng loại$/i.test(scope) || /^các sản phẩm/i.test(scope) || normK(d.t).startsWith(normK(scope));
+      const ex = note.match(/không áp dụng cho (.+)$/i);
+      if (ex && ex[1].split(/\s*,\s*|\s+và\s+/i).some(nm => normK(d.t).includes(normK(nm)))) applies = false;
+      if (!applies) return;
+      any = true;
+      ops.split(/\s+hoặc\s+/i).map(o => { const mm = o.trim().match(/^(\d+)\s+(.+)$/); return mm ? { n: +mm[1], name: mm[2].trim() } : null; }).filter(Boolean).forEach(o => {
+        const key = normK(o.name), same = key === 'cungloai' || normK(d.t).startsWith(key);
+        add(same ? sameGi : GIFTS.findIndex(g => g.ty === 'x' && normK(g.l).replace('giatangcheo', '').includes(key)), o.n, same ? 'Cùng loại' : o.name, same);
+      });
+    });
+    if (any) return gifts;
+  }
+  String(d.d || '').replace(/Ò/g, '=>').split(/\n|\s\*\s/).map(x => x.replace(/^\*\s*/, '').trim()).filter(Boolean).forEach(line => {
+    const m = line.match(GK_MONEY); if (!m || (parseFloat(m[1].replace(/\./g, '')) || 0) !== d.e) return;
+    const scope = m[2].trim(), rw = m[3], ex = rw.match(/\(không áp dụng cho ([^)]+)\)/i);
+    if (ex && ex[1].split(/\s*,\s*|\s+và\s+/i).some(nm => normK(d.t).includes(normK(nm)))) return;
+    if (/cùng loại/i.test(scope)) { const nm = rw.match(/tặng\s+(\d+)\s+cùng loại/i); add(sameGi, nm ? +nm[1] : 1, 'Cùng loại', true); return; }
+    const r = (typeof RULES !== 'undefined' ? RULES : []).find(x => x.key === normK(line) && x.members.includes(d.w)); if (!r) return;
+    if (/Caring|trị mụn/i.test(r.name)) return;
+    r.opts.forEach(o => {
+      const same = sameGi >= 0 && normK(GIFTS[sameGi].l).includes(normK(String(o.label).replace(/\(.*$/, '')));
+      add(same ? sameGi : o.gi, o.n, same ? 'Cùng loại' : o.label, same);
+    });
+  });
+  return gifts;
+}
+// lựa chọn đang dùng (nếu có) có còn hợp lệ không
+function gkPick(d) {
+  const gi = gkOf[d.w]; if (gi == null) return null;
+  return gOptsOf(d).find(o => o.gi === gi) || null;
+}
 function effOf(d) {
   if (ORDER_OPTS[d.w]) return withOpt(d, optIdx(d));
   const k = inferN(d);
-  return k > 0 ? Object.assign({}, d, { n: k }) : d;
+  let e = k > 0 ? Object.assign({}, d, { n: k }) : d;
+  const pk = gkPick(d);
+  if (pk) e = Object.assign({}, e, { o: GIFTS[pk.gi].l, n: pk.n });
+  return e;
 }
 
 // Tính một dòng theo số lượng F — cùng công thức computeP/quý của trang Tính giá (không tính CTKM đặc biệt)
@@ -926,6 +977,12 @@ function finalLine(d0, n) {
       rows.push('<div class="cf-row ' + (k > 0 ? 'ok' : 'mute') + '">' + (k > 0 ? '✓ ' : '') + 'Dòng Caring ' + fmt(rl.thr) + ' (suất riêng): ' + (k > 0 ? 'được ' + k + ' suất · chọn quà:' : 'chưa đủ mức') + '</div><div class="cx-btns">' + btnsH + '</div>');
     });
   }
+  { const go = excl ? [] : gOptsOf(d0);   // chọn quà của luật "bất kỳ" (một sản phẩm đủ mốc E): mỗi suất 1 quà
+    if (go.length > 1 && kind === 'money') {
+      const k = Math.floor(n * cNet(d) / d.e + 1e-9), sel = gkPick(d0) ? gkOf[d.w] : (d.n > 0 ? (go.find(o => GIFTS[o.gi].l === d0.o) || {}).gi : undefined);
+      const bh = go.map(o => '<button type="button" class="cxb gkb' + (sel === o.gi ? ' on' : '') + '" data-gk="' + d.w + ':' + o.gi + '">' + (k > 0 ? 'Tặng ' + k * o.n + ' ' : '') + esc(o.same ? 'cùng loại' : giftName(GIFTS[o.gi].l).replace(/\s*\(.*$/, '')) + '</button>').join('');
+      rows.push('<div class="cf-row ' + (k > 0 ? 'ok' : 'mute') + '">' + (k > 0 ? '✓ ' : '') + 'Chọn quà CTKM quý (mỗi suất 1 quà)' + (k > 0 ? ': ' + k + ' suất' : ': chưa đủ mức') + '</div><div class="cx-btns">' + bh + '</div>');
+    } }
   const canPrice = !r.miss && r.P != null;
   const pu = esc(pUnit(d)), M = d.m || 1;
   const priceTxt = canPrice ? fmt(r.P) + '<small> /' + pu + '</small>' : '';
@@ -1766,7 +1823,7 @@ function copyText() {
 }
 
 // Lưu đơn trên máy (không bắt buộc: nếu trình duyệt chặn thì đơn chỉ tồn tại trong phiên này)
-function saveCart() { try { localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick })); } catch (e) { /* bỏ qua */ } }
+function saveCart() { try { localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(GK_KEY, JSON.stringify(gkOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick })); } catch (e) { /* bỏ qua */ } }
 function loadCart() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -1781,6 +1838,8 @@ function loadCart() {
     Object.keys(op).forEach(k => { if (ORDER_OPTS[k] && Number.isInteger(op[k]) && ORDER_OPTS[k][op[k]]) optOf[k] = op[k]; });
     const vqs = JSON.parse(localStorage.getItem(VQ_KEY) || '{}');
     Object.keys(vqs).forEach(k => { if (VARIANTS[k] && qtyOf[k] > 0 && vqs[k] && typeof vqs[k] === 'object') { vqOf[k] = {}; VARIANTS[k].forEach(x => { const q = Math.floor(+vqs[k][x.id]); if (q > 0) vqOf[k][x.id] = q; }); varFix(+k); } });
+    const gks = JSON.parse(localStorage.getItem(GK_KEY) || '{}');
+    Object.keys(gks).forEach(k => { if (qtyOf[k] > 0 && Number.isInteger(gks[k])) gkOf[k] = gks[k]; });
     const cxs = JSON.parse(localStorage.getItem(CX_KEY) || '{}');
     Object.keys(cxs).forEach(k => { if (qtyOf[k] > 0 && cxs[k] && typeof cxs[k] === 'object') cxOf[k] = cxs[k]; });
     const pr = JSON.parse(localStorage.getItem(PROG_KEY) || '{}');
@@ -1790,7 +1849,7 @@ function loadCart() {
 
 function setQty(w, n) {
   n = Math.max(0, Math.floor(+n || 0));
-  if (n === 0) { delete qtyOf[w]; delete progOf[w]; delete optOf[w]; delete cxOf[w]; delete vqOf[w]; } else { qtyOf[w] = n; varFix(w); }
+  if (n === 0) { delete qtyOf[w]; delete progOf[w]; delete optOf[w]; delete cxOf[w]; delete gkOf[w]; delete vqOf[w]; } else { qtyOf[w] = n; varFix(w); }
   saveCart();
   renderCart();
   renderCatalog();   // cập nhật thẻ, thanh tiến độ và nhãn đang mở
@@ -1894,6 +1953,11 @@ document.addEventListener('click', e => {
   if (b.id === 'osCopy') { copyOrderText(); return; }
   if (b.id === 'osShare') { shareOrderText(); return; }
   if (b.classList.contains('addto')) { const w = +b.dataset.w; setQty(w, (qtyOf[w] || 0) + (+b.dataset.n || 0)); return; }
+  if (b.dataset.gk !== undefined) {   // chọn quà của luật "bất kỳ" ở màn một sản phẩm
+    const [w, gi] = b.dataset.gk.split(':'); const wn = +w, g = +gi;
+    if (gkOf[wn] === g) delete gkOf[wn]; else gkOf[wn] = g;
+    saveCart(); renderCart(); renderCatalog(); return;
+  }
   if (b.dataset.cx !== undefined) {   // chọn / bỏ quà của luật Caring
     const [w, key, gi] = b.dataset.cx.split(':'); const wn = +w, g = +gi, cur = cxOf[wn] || {};
     cxOf[wn] = Object.assign({}, cur, { [key]: cur[key] === g ? null : g }); if (cxOf[wn][key] == null) delete cxOf[wn][key];
