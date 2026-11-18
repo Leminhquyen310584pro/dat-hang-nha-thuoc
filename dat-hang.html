@@ -1056,12 +1056,17 @@ function specPrimary(d, p) {
 }
 function specCalc(d, p, F) {
   if (!d || !p || p.fixed != null || !(F > 0)) return null;
-  const M = d.m == null ? 1 : d.m, G = d.gp || 0, H = p.stack ? (d.h || 0) : 0, I = p.ck || 0;
-  let Og = null, N = 0;
-  if (p.stack && p.qg && giftIdx(p.qg) !== '') { Og = GIFTS[+giftIdx(p.qg)]; N = d.n > 0 ? (d.f > 0 ? Math.floor(F / d.f) : 1) * d.n : 0; }
-  else if (p.stack && d.o && d.n > 0) { const gi = giftIdx(d.o); if (gi !== '') { Og = GIFTS[+gi]; N = d.f > 0 ? Math.floor(F / d.f) * d.n : d.n; } }
-  const L = F * d.c * (1 - G) * (1 - H) * (1 - I), kk = p.F > 0 ? Math.max(1, Math.floor(F / p.F + 1e-9)) : 1;
-  const parts = []; let costX = 0, qtyX = 0, warn = null;
+  const M = d.m == null ? 1 : d.m, I = p.ck || 0;
+  /* Phần CTKM QUÝ khi chương trình CỘNG với CT Quý (p.stack): dùng ĐÚNG bộ tính CTKM quý của App (calcQuyRaw): CK quý khi đủ mốc, quà quý theo suất TIỀN sau CK 1%, quà người dùng đã CHỌN
+     (nút chọn quà, Caring, luật nhóm Micellar), Sunplay 550k. Riêng chương trình đổi quà quý (p.qg, vd Lipcare: 1 Sheer Color thường) thì thay quà mặc định bằng quà đó. */
+  let q = null;
+  if (p.stack) {
+    let dq = effOf(d);
+    if (p.qg && giftIdx(p.qg) !== '') dq = Object.assign({}, dq, { o: p.qg, n: d.n > 0 ? d.n : 0 });
+    q = calcQuyRaw(dq, F);
+  }
+  const L = (q ? q.L : F * d.c * (1 - (d.gp || 0))) * (1 - I), kk = p.F > 0 ? Math.max(1, Math.floor(F / p.F + 1e-9)) : 1;
+  const parts = []; let costX = 0, qtyX = 0, warn = q && q.miss ? 'Thiếu giá quà' : null;
   const add = (n, gift, price, sameFlag) => {
     if (!(n > 0)) return;
     n *= kk;
@@ -1071,13 +1076,15 @@ function specCalc(d, p, F) {
   };
   const pri = specPrimary(d, p);
   if (pri) { add(pri.n, pri.gift, pri.price, pri.same); if (pri.second) add(pri.second, null, null, true); }
-  let qtyO = 0, costO = 0;
-  if (Og && Og.ty === 's') qtyO = N;
-  if (Og && Og.ty === 'x') { costO = N * (Og.p || 0); if (N > 0 && !(Og.p > 0)) warn = 'Thiếu giá quà tặng chéo'; }
   if (I > 0) parts.unshift('CK đặc biệt ' + +(I * 100).toFixed(2) + '%');
-  if (H > 0) parts.push('CK CTKM quý ' + +(H * 100).toFixed(2) + '%');
-  if (N > 0 && Og) parts.push('CTKM quý: tặng ' + N + ' ' + (Og.ty === 's' ? 'cùng loại' : giftName(Og.l)));
-  const units = F + qtyO + qtyX, denom = units * M, pay = L - costO - costX;
+  let qtyQ = 0, costQ = 0;
+  if (q) {
+    qtyQ = q.units - F; costQ = q.cost;
+    if (q.L < F * d.c * (1 - (d.gp || 0)) - 1e-6) parts.push('CK CTKM quý ' + +((1 - q.L / (F * d.c * (1 - (d.gp || 0)))) * 100).toFixed(2) + '%');
+    if (q.N > 0) parts.push('CTKM quý: tặng ' + q.N + ' ' + q.giftName);
+    (q.cx || []).forEach(x => parts.push('CTKM quý: tặng ' + x.n + ' ' + (x.same ? 'cùng loại' : giftName(x.opt.label))));
+  }
+  const units = F + qtyQ + qtyX, denom = units * M, pay = L - costQ - costX;
   return { F, L, pay, units, parts, warn, P: !warn && denom > 0 ? pay / denom : null };
 }
 const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/' + pUnit(d) : 'thiếu giá quà') : '';
@@ -1095,7 +1102,8 @@ function specialLines(d) {
     if (need > 0) {
       const rn = n >= need ? specCalc(d, p, n) : null;   // giá cuối ở số lượng đang đặt (khi đã đủ mức)
       if (rn) box = '<div class="spc"><b>' + (rn.P != null ? 'Giá cuối theo chương trình này: ' + fmt(rn.P) + '<small> /' + esc(pUnit(d)) + '</small>' : 'Chưa tính được giá cuối (thiếu giá quà)') + '</b>' +
-        '<div class="spc-s">' + n + ' ' + esc(d.u || 'sp') + (rn.units > n ? ' + tặng ' + (rn.units - n) + ' ' + esc(d.u || 'sp') : '') + ' · thanh toán ' + fmt(rn.pay) + (rn.parts.length ? ' · gồm: ' + esc(rn.parts.join(' · ')) : '') + '</div></div>';
+        '<div class="spc-s">' + n + ' ' + esc(d.u || 'sp') + (rn.units > n ? ' + tặng ' + (rn.units - n) + ' ' + esc(d.u || 'sp') : '') + ' · thanh toán ' + fmt(rn.pay) + (rn.parts.length ? ' · gồm: ' + esc(rn.parts.join(' · ')) : '') + '</div>' +
+        (() => { const cr = p.stack ? caringOf(d) : null; if (!cr) return ''; const miss = [['hi', cr.hi], ['lo', cr.lo]].filter(([k, rl]) => rl && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]); return miss.length ? '<div class="spc-s warn-t">Còn quà CTKM quý (' + (isCaringRule(cr.hi) ? 'dòng Caring' : 'luật nhóm rửa mặt/tẩy trang') + ' ' + miss.map(([k, rl]) => fmt(rl.thr)).join(', ') + ') chưa chọn: chọn ở thẻ CTKM quý để cộng vào giá.</div>' : ''; })() + '</div>';
       if (hasGift && need > 1) act = chipsHtml(d, [1, 2, 3].map(k => ({ qty: qk(k), sub: k + ' suất', price: specPriceTxt(d, specCalc(d, p, qk(k))) })), prog);
       else act = (n >= need ? '<span class="thr-ok">✓ Đủ mức (riêng sản phẩm này)</span>' : '') + (n !== need ? setBtn(d, need, prog, specPriceTxt(d, specCalc(d, p, need))) : '');
     }
