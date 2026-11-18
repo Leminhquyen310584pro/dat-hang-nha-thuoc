@@ -719,8 +719,10 @@ function calcQuy(d, F) { return calcQuyRaw(effOf(d), F); }
    (b) 900k Caring -> 1 trong 2 kem 50g; (c) 450k Caring -> 1 trong 3 Micellar Water. (b), (c) do người dùng chọn rồi mới vào giá (cxOf). ---- */
 const cxOf = {};   // mã sản phẩm -> { hi: chỉ số quà, lo: chỉ số quà } đã chọn
 const CX_KEY = 'dat-hang-caring-v1';
-function caringOf(d) {
-  const rs = (typeof RULES !== 'undefined' ? RULES : []).filter(r => /Caring/i.test(r.name) && r.members.includes(d.w)).sort((x, y) => y.thr - x.thr);
+const isCaringRule = r => /Caring/i.test(r.name);
+const ruleLabel = r => isCaringRule(r) ? 'Dòng Caring' : 'Luật nhóm rửa mặt/tẩy trang';
+function caringOf(d) {   // suất RIÊNG ngoài ô quà E: Caring (3 luật) và luật nhóm 320k rửa mặt/tẩy trang cho 3 Micellar (E = 480k; người dùng bảo 18/11/2026)
+  const rs = (typeof RULES !== 'undefined' ? RULES : []).filter(r => r.members.includes(d.w) && (isCaringRule(r) || (/rửa mặt và dòng nước tẩy trang/i.test(r.name) && r.thr !== d.e))).sort((x, y) => y.thr - x.thr);
   return rs.length ? { hi: rs[0], lo: rs[1] || null } : null;
 }
 const caringSuat = (d, q, r) => Math.floor(q * cNet(d) / r.thr + 1e-9);
@@ -974,7 +976,7 @@ function finalLine(d0, n) {
       if (!rl) return;
       const k = caringSuat(d, n, rl), sel = (cxOf[d.w] || {})[key];
       const btnsH = rl.opts.map(o => '<button type="button" class="thrbtn cxb' + (sel === o.gi ? ' on' : '') + '" data-cx="' + d.w + ':' + key + ':' + o.gi + '"' + (k > 0 ? '' : ' disabled') + '>' + (k > 0 ? 'Tặng ' + k * o.n + ' ' : '') + esc(giftName(o.label).replace(/\s*\(.*$/, '')) + '</button>').join('');
-      rows.push('<div class="cf-row ' + (k > 0 ? 'ok' : 'mute') + '">' + (k > 0 ? '✓ ' : '') + 'Dòng Caring ' + fmt(rl.thr) + ' (suất riêng): ' + (k > 0 ? 'được ' + k + ' suất · chọn quà:' : 'chưa đủ mức') + '</div><div class="cx-btns">' + btnsH + '</div>');
+      rows.push('<div class="cf-row ' + (k > 0 ? 'ok' : 'mute') + '">' + (k > 0 ? '✓ ' : '') + ruleLabel(rl) + ' ' + fmt(rl.thr) + ' (suất riêng): ' + (k > 0 ? 'được ' + k + ' suất · chọn quà:' : 'chưa đủ mức') + '</div><div class="cx-btns">' + btnsH + '</div>');
     });
   }
   { const go = excl ? [] : gOptsOf(d0);   // chọn quà của luật "bất kỳ" (một sản phẩm đủ mốc E): mỗi suất 1 quà
@@ -1752,8 +1754,8 @@ function renderCart() {
     let g = '';
     if (r.N > 0) g = '<div class="gift' + (r.miss ? ' bad' : '') + '">' + (r.miss ? 'Thiếu giá quà ' + esc(r.giftName) : '✓ Tặng ' + r.N + ' ' + esc(r.giftName)) + '</div>';
     else if (hasQuy(d)) g = '<div class="gift" style="color:var(--muted)">Chưa đủ ' + fmt(d.e) + ' để nhận quà' + (caringOf(d) ? ' cùng loại' : '') + '</div>';
-    (r.cx || []).forEach(x => { g += '<div class="gift' + (!x.same && !(x.price > 0) ? ' bad' : '') + '">' + (!x.same && !(x.price > 0) ? 'Thiếu giá quà ' + esc(giftName(x.opt.label)) : '✓ Tặng ' + x.n + ' ' + esc(giftName(x.opt.label)) + ' (dòng Caring ' + fmt(caringOf(d)[x.key].thr) + ')') + '</div>'; });
-    { const cr0 = caringOf(d); if (cr0) { const miss0 = [['hi', cr0.hi], ['lo', cr0.lo]].filter(([k, rl]) => rl && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]); if (miss0.length) g += '<div class="gift" style="color:var(--muted)">Đủ mốc Caring ' + miss0.map(([k, rl]) => fmt(rl.thr)).join(', ') + ': chọn quà ở Chi tiết</div>'; } }
+    (r.cx || []).forEach(x => { g += '<div class="gift' + (!x.same && !(x.price > 0) ? ' bad' : '') + '">' + (!x.same && !(x.price > 0) ? 'Thiếu giá quà ' + esc(giftName(x.opt.label)) : '✓ Tặng ' + x.n + ' ' + esc(giftName(x.opt.label)) + ' (' + ruleLabel(caringOf(d)[x.key]).toLowerCase() + ' ' + fmt(caringOf(d)[x.key].thr) + ')') + '</div>'; });
+    { const cr0 = caringOf(d); if (cr0) { const miss0 = [['hi', cr0.hi], ['lo', cr0.lo]].filter(([k, rl]) => rl && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]); if (miss0.length) g += '<div class="gift" style="color:var(--muted)">Đủ mốc ' + (isCaringRule(cr0.hi) ? 'Caring' : 'nhóm rửa mặt/tẩy trang') + ' ' + miss0.map(([k, rl]) => fmt(rl.thr)).join(', ') + ': chọn quà ở Chi tiết</div>'; } }
     if (progOf[d.w] && progOf[d.w] !== 'q') g += '<div class="gift" style="color:var(--dbt-ink)">Đơn theo CTKM đặc biệt: ' + esc(progOf[d.w]) + ' · giá chưa tính CTKM đặc biệt, xem ở trang Tính giá</div>';
     addLine(d, '<div class="cline"><div class="n1">' + esc(shortName(d)) + '</div><div class="amt">' + fmt(r.pay) + '</div>' +
       '<div class="n2">' + n + ' ' + esc(d.u || 'sp') + esc(varSuffix(d)) + (r.P != null ? ' · ' + fmt(r.P) + '/' + esc(pUnit(d)) : '') + '</div>' + rm + g + '</div>');
