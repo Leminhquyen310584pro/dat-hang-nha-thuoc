@@ -1574,7 +1574,6 @@ function moneyOpts(d){   // luật tiền (cùng loại và luật nhóm) của 
     if (/cùng loại/i.test(scope)) { const nm = rw.match(/tặng\s+(\d+)\s+cùng loại/i); add(sameGi, nm ? +nm[1] : 1, 'Cùng loại'); return; }
     const r = rules_().find(x => x.key === normK(line) && x.members.has(d.w)); if (!r) return;
     if (/Caring/i.test(r.name)) { group = true; return; }   // luật Caring là suất RIÊNG (người dùng chốt 17/11/2026), có khối chọn quà riêng (caringX)
-    if (/Sửa rửa mặt và dòng Nước tẩy trang/i.test(r.name)) { group = true; return; }   // luật nhóm 320k rửa mặt/tẩy trang chỉ là luật của ĐƠN HỖN HỢP (người dùng chốt 17/11/2026): màn một sản phẩm không hiện quà của luật này
     if (/trị mụn/i.test(r.name)) { group = true; return; }   // luật nhóm 320k "các sản phẩm trị mụn" (Sealing gel / Scar Care) chỉ là luật của ĐƠN HỖN HỢP (người dùng chốt 18/11/2026): màn một sản phẩm chỉ còn "Cùng loại"
     r.opts.forEach(o => {
       const same = sameGi >= 0 && normK(GIFTS[sameGi].l).includes(normK(o.label.replace(/\(.*$/, '')));
