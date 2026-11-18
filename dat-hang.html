@@ -425,16 +425,19 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 .mx-cond b{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 
 /* đầu trang: băng ngọc có logo, tên và hai thẻ nhỏ */
-.hero{display:flex;align-items:center;gap:14px;margin:10px 0 12px;padding:16px;border-radius:20px;color:#fff;background:radial-gradient(120% 140% at 100% 0%,rgba(255,255,255,.18),rgba(255,255,255,0) 55%),linear-gradient(135deg,#14877C 0%,#0F766E 55%,#0B5F59 100%);box-shadow:0 10px 26px rgba(15,118,110,.28)}
-.hero-logo{flex:none;width:52px;height:52px;border-radius:14px;line-height:0;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.85)}.hero-logo svg{display:block;width:100%;height:100%}
+.hero{display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:12px;align-items:center;margin:10px 0 12px;padding:16px 16px 14px;border-radius:20px;color:#fff;background:linear-gradient(135deg,#0F8A7E 0%,#0F766E 60%,#0C625B 100%);box-shadow:0 8px 22px rgba(15,118,110,.24)}
+.hero-logo{width:56px;height:56px;border-radius:15px;line-height:0;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+.hero-logo svg{display:block;width:100%;height:100%}
 .hero-t{min-width:0}
-.hero-k{margin:0 0 2px;font-size:10.5px;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.78)}
-.hero h1{margin:0;font-size:22px;line-height:1.15;letter-spacing:-.015em;color:#fff}
-.hero .ver{display:inline-block;vertical-align:2px;margin-left:4px;padding:1px 9px;border-radius:999px;background:#fff;color:#0F766E;font-size:13px;font-weight:800;letter-spacing:0}
-.hero-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.hero-chips span{font-size:11.5px;color:#fff;background:rgba(255,255,255,.16);border-radius:999px;padding:3px 10px}
-.hero-chips b{font-weight:700}
-@media (max-width:380px){.hero{padding:14px;gap:12px}.hero h1{font-size:20px}.hero-logo{width:46px;height:46px}}
+.hero-k{margin:0 0 4px;font-size:10.5px;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.8);white-space:nowrap}
+.hero h1{margin:0;font-size:24px;line-height:1.1;letter-spacing:-.015em;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hero .ver{display:inline-block;padding:2px 10px;border-radius:999px;background:#fff;color:#0F766E;font-size:14px;font-weight:800;letter-spacing:0}
+.hero-meta{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(255,255,255,.22);padding-top:11px}
+.hero-meta>div{display:flex;flex-direction:column;gap:2px}
+.hero-meta>div+div{border-left:1px solid rgba(255,255,255,.22);padding-left:14px}
+.hero-meta small{font-size:11px;color:rgba(255,255,255,.78)}
+.hero-meta b{font-size:14px;font-weight:700;color:#fff}
+@media (max-width:380px){.hero{padding:14px 14px 12px;column-gap:12px}.hero h1{font-size:22px}.hero-logo{width:50px;height:50px}.hero-meta b{font-size:13px}}
 
 .mx-cond,.thr-c,.pack-row .spec{white-space:pre-line}
 
@@ -504,12 +507,12 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 <body>
 <div class="app">
   <header class="hero">
-    <div class="hero-logo" aria-hidden="true"><svg viewBox="0 0 88 88" width="52" height="52"><rect width="88" height="88" rx="21" fill="#0B7F58"/><path d="M0 62H88V67a21 21 0 0 1-21 21H21A21 21 0 0 1 0 67Z" fill="#096B4A"/><path d="M16 24h9l6 28h30l6-20H28" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="62" r="5" fill="#fff"/><circle cx="58" cy="62" r="5" fill="#fff"/><circle cx="68" cy="20" r="8" fill="#C2410C"/></svg></div>
+    <div class="hero-logo" aria-hidden="true"><svg viewBox="0 0 88 88" width="56" height="56"><rect width="88" height="88" rx="21" fill="#0B7F58"/><path d="M0 62H88V67a21 21 0 0 1-21 21H21A21 21 0 0 1 0 67Z" fill="#096B4A"/><path d="M16 24h9l6 28h30l6-20H28" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="62" r="5" fill="#fff"/><circle cx="58" cy="62" r="5" fill="#fff"/><circle cx="68" cy="20" r="8" fill="#C2410C"/></svg></div>
     <div class="hero-t">
       <p class="hero-k">ROHTO MENTHOLATUM · NHÀ THUỐC</p>
       <h1>App đặt hàng <span class="ver">2.0</span></h1>
-      <div class="hero-chips"><span>Hiệu lực 01/10 – 31/12/2026</span><span>Cập nhật <b id="upd"></b></span></div>
     </div>
+    <div class="hero-meta"><div><small>Hiệu lực</small><b>01/10 – 31/12/2026</b></div><div><small>Cập nhật bảng giá</small><b id="upd"></b></div></div>
   </header>
 
   <div class="searchbar">
