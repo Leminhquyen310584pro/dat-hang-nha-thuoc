@@ -1409,7 +1409,7 @@ function mixResult(sub) {
   const usedWs = [...sub.members].filter(w => (qtyOf[w] || 0) > 0 && DW[w]);
   if (!usedWs.length) return null;
   if (sub.kind === 'q') return mixRuleResult(sub, usedWs);
-  if (sub.id.charAt(0) === 'i') return null;                  // quà không quy ra tiền: không đổi giá
+  if (sub.id.charAt(0) === 'i') return mixPinfoResult(sub, usedWs);   // quà không quy ra tiền: giá KHÔNG đổi nhưng vẫn hiện đơn hàng và quà (người dùng bảo 18/11/2026)
   return mixProgResult(sub, usedWs);
 }
 /* Luật "Mua đơn hàng <E> cùng loại → tặng cùng loại" của chính sản phẩm là suất RIÊNG trong Đơn hỗn hợp (người dùng chốt 17/11/2026; giống trang Tính giá, xem ownSameRule ở page_tpl.html) */
@@ -1458,6 +1458,20 @@ function mixRuleResult(sub, usedWs) {
   });
   return { kind: 'q', cards, lines, gross: lines.reduce((a, l) => a + l.gross, 0), pay: lines.reduce((a, l) => a + l.L, 0), warn: warnAll ? warnAll.warn : (lines.some(l => l.miss) ? 'Thiếu giá quà của CTKM quý' : null) };
 }
+/* Nhóm quà KHÔNG quy ra tiền (mũ bảo hiểm, túi Tote, cân, bình Oxy) trong Đơn hỗn hợp: quà không đổi giá, chương trình cộng CT Quý nên giá cuối từng sản phẩm = giá CTKM quý của chính sản phẩm đó
+   (đúng giá phiếu Đơn hàng sẽ tính), tổng thanh toán = Σ thanh toán từng dòng; ghi số quà đủ mốc (tối đa N set) và điều kiện bắt buộc nếu có. */
+function mixPinfoResult(sub, usedWs) {
+  const x = PINFO[+sub.id.slice(1)]; if (!x) return null;
+  const st = subStat(sub), k = sub.max ? Math.min(st.k, sub.max) : st.k;
+  let reqMiss = null;
+  if (x.bb) { const kw = norm(String(x.bb).replace(/^1\s*/, '')); if (!DATA.some(d => (qtyOf[d.w] || 0) > 0 && norm(d.t).includes(kw))) reqMiss = x.bb; }
+  const lines = usedWs.map(w => {
+    const d = DW[w], q = qtyOf[w], r = calcQuy(d, q);
+    return { d, q, gross: q * d.c, L: r.L, alloc: 0, N: r.N, og: null, qtyO: Math.max(0, (r.units || q) - q), miss: r.miss, P: r.miss ? null : r.P, pay: r.pay, giftName: r.giftName };
+  });
+  return { kind: 'p', ok: k > 0 && !reqMiss, suat: k, giftN: reqMiss ? 0 : k, giftLabel: x.ten, reqMiss, max: sub.max, cum: sub.cum, T: st.t, lines,
+    gross: lines.reduce((a, l) => a + l.gross, 0), pay: lines.reduce((a, l) => a + l.pay, 0), warn: lines.some(l => l.miss) ? 'Thiếu giá quà của CTKM quý' : null };
+}
 function mixProgResult(sub, usedWs) {
   const first = PROGS.find(p => 'p' + p.num + ':' + p.title === sub.prog);
   if (!first) return null;
@@ -1495,7 +1509,12 @@ function mixResultHtml(sub) {
   const rows = [];
   rows.push('<div class="rs-row"><span>Tiền hàng</span><b>' + fmt(r.gross) + '</b></div>');
   let gifts = '';
-  if (r.kind === 'q') {
+  if (r.kind === 'p') {
+    if (r.ok) gifts += '<div class="rs-gift"><b>✓ Tặng ' + r.giftN + ' ' + esc(r.giftLabel) + '</b> <small>(không tính vào giá' + (r.max ? ' · tối đa ' + r.max + ' set mỗi khách' : '') + (r.cum ? ' · cộng dồn: các đơn khác cộng vào' : ' · phải đủ trong 1 đơn') + ')</small></div>';
+    else if (r.reqMiss) gifts += '<div class="rs-gift" style="color:var(--bad)"><b>⚠ Đủ mốc tiền nhưng thiếu điều kiện bắt buộc: ' + esc(r.reqMiss) + '</b></div>';
+    else gifts += '<div class="rs-none">Chưa đủ mốc: chưa được tặng ' + esc(r.giftLabel) + '.</div>';
+    gifts += '<div class="rs-none" style="margin-top:2px">Quà không quy ra tiền nên giá từng sản phẩm không đổi (giữ giá CTKM quý của sản phẩm).</div>';
+  } else if (r.kind === 'q') {
     r.cards.filter(c => c.ok && c.giftN > 0 && c.opt).forEach(c => {
       const names = (c.r.opts || []);
       gifts += '<div class="rs-gift"><b>✓ Tặng ' + c.giftN + ' ' + esc(giftName(c.opt.label)) + '</b>' + (c.price > 0 ? ' <small>(giá quà ' + fmt(c.price) + '/cái, trừ vào giá từng sản phẩm)</small>' : '') +
@@ -1512,7 +1531,7 @@ function mixResultHtml(sub) {
   const lineHtml = r.lines.map(l => '<div class="rs-line"><span>' + esc(shortName(l.d)) + ' · ' + l.q + ' ' + esc(l.d.u || 'sp') + (l.qtyO > 0 ? ' + tặng ' + l.qtyO : '') + '</span><b>' + (l.P != null ? fmt(l.P) + '/' + esc(pUnit(l.d)) : '—') + '</b></div>').join('');
   rows.push('<div class="rs-lines"><div class="rs-lh">Giá cuối cùng từng sản phẩm</div>' + lineHtml + '</div>');
   if (r.warn) rows.push('<div class="rs-warn">⚠ ' + esc(r.warn) + ': chưa tính được giá cuối.</div>');
-  rows.push('<div class="rs-total"><span>Tổng thanh toán (sau CK hóa đơn 1%' + (r.kind === 'q' ? '' : ' và CK nhóm') + ')</span><b>' + fmt(r.pay) + '</b></div>');
+  rows.push('<div class="rs-total"><span>Tổng thanh toán (sau CK hóa đơn 1%' + (r.kind === 'q' ? '' : (r.kind === 'p' ? ' và CTKM quý của từng sản phẩm' : ' và CK nhóm')) + ')</span><b>' + fmt(r.pay) + '</b></div>');
   return '<div class="ms-res">' + rows.join('') + '</div>';
 }
 
@@ -1611,6 +1630,7 @@ function closeMixSheet() {
 // Nút "Dùng giá đơn hỗn hợp này cho phiếu Đơn hàng" / "Bỏ"
 function mixApplyHtml(s) {
   const res = mixResult(s);
+  if (res && res.kind === 'p') return '<div class="ms-apply on"><span>' + (res.ok ? '✓ Đã tính quà · phiếu Đơn hàng có sẵn các sản phẩm này' : 'Phiếu Đơn hàng có sẵn các sản phẩm này') + '</span><span class="ms-btns"><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
   const on = mixApplied.includes(s.id);
   if (on) return '<div class="ms-apply on"><span>✓ Đã đưa vào phiếu Đơn hàng</span><span class="ms-btns"><button type="button" class="ms-apbtn" data-mxoff="' + esc(s.id) + '">Bỏ</button><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
   const okGrp = !!res && res.lines.length >= 2 && (res.kind === 'q' ? res.cards.some(c => c.ok) : res.ok);
