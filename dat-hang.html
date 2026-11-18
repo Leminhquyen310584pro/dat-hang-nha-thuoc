@@ -504,6 +504,12 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 /* chọn quà CTKM quý của luật "bất kỳ" ở màn một sản phẩm (nút .cxb.gkb trong .cx-btns): giống nút thrbtn nhưng KHÔNG mang lớp thrbtn (test tìm nút đặt đơn hàng theo thrbtn) */
 .cx-btns .gkb{border:1px solid var(--line,#d7e3e0);border-radius:12px;background:var(--surface-2,#fff);color:inherit;cursor:pointer}
 
+/* giá cuối theo CTKM đặc biệt trong thẻ chương trình (App đặt hàng bước 1, 18/11/2026) */
+.spc{margin:8px 0 6px;padding:8px 10px;border-radius:10px;border:1px solid var(--dbt,#be185d);background:var(--dbt-soft,rgba(190,24,93,.08))}
+.spc b{display:block;font-size:14px;color:var(--dbt-ink,#9d174d)}
+.spc b small{font-size:12px;font-weight:600}
+.spc-s{margin-top:2px;font-size:12px;color:var(--muted)}
+
 </style>
 </head>
 <body>
@@ -1022,8 +1028,8 @@ function chipsHtml(d, items, prog) {
 }
 
 // Nút đơn lẻ "Đặt đơn hàng N": hiện khi số lượng hiện tại khác N (kể cả khi đang nhiều hơn N, để về lại đúng mức)
-function setBtn(d, need, prog) {
-  return '<button type="button" class="thrbtn" data-set="' + d.w + '" data-n="' + need + '" data-prog="' + esc(prog) + '">Đặt đơn hàng ' + need + ' ' + esc(d.u || 'sp') + '</button>';
+function setBtn(d, need, prog, price) {
+  return '<button type="button" class="thrbtn" data-set="' + d.w + '" data-n="' + need + '" data-prog="' + esc(prog) + '">Đặt đơn hàng ' + need + ' ' + esc(d.u || 'sp') + (price ? ' · ' + esc(price) : '') + '</button>';
 }
 
 // Hạn chương trình: "hết hạn 30/11" và, khi sắp hết (còn <= 14 ngày), "còn 13 ngày" in đậm đỏ
@@ -1035,6 +1041,46 @@ function expText(iso) {
 }
 
 // Mỗi CTKM đặc biệt của sản phẩm này một dòng riêng (tách khỏi dòng CTKM quý). Giá chưa tính ở trang này: xem trang Tính giá.
+/* ---- Giá cuối của CTKM đặc biệt cho MỘT sản phẩm (người dùng bảo 18/11/2026, "làm bước 1") ----
+   Cùng công thức progPrimary + progVals + computeP của trang Tính giá (đã kiểm 152 dòng với sheet Excel): L = F × C × (1−G) × (1−H) × (1−I); quà chéo trừ tiền, quà cùng loại cộng số đơn vị.
+   H (CK CTKM quý) và quà quý chỉ có khi chương trình CỘNG CT Quý (p.stack); số lần = floor(F ÷ p.F) (không cộng dồn nhiều đơn). Pack (fixed) không tính ở đây. */
+function specPrimary(d, p) {
+  if (p.cq > 0) {
+    let gift = null, price = p.cp;
+    if (p.cn) { const gi = giftIdx(p.cn); if (gi !== '') { gift = GIFTS[+gi]; if (gift.p != null) price = gift.p; } }
+    else gift = GIFTS.find(g => g.ty === 'x' && /18 GÓI DG SELSUN 5ML/i.test(g.l)) || null;
+    return { n: p.cq, gift, price, same: false, second: p.same > 0 ? p.same : 0 };
+  }
+  if (p.same > 0) return { n: p.same, gift: sameGiftOf(d), price: null, same: true, second: 0 };
+  return null;
+}
+function specCalc(d, p, F) {
+  if (!d || !p || p.fixed != null || !(F > 0)) return null;
+  const M = d.m == null ? 1 : d.m, G = d.gp || 0, H = p.stack ? (d.h || 0) : 0, I = p.ck || 0;
+  let Og = null, N = 0;
+  if (p.stack && p.qg && giftIdx(p.qg) !== '') { Og = GIFTS[+giftIdx(p.qg)]; N = d.n > 0 ? (d.f > 0 ? Math.floor(F / d.f) : 1) * d.n : 0; }
+  else if (p.stack && d.o && d.n > 0) { const gi = giftIdx(d.o); if (gi !== '') { Og = GIFTS[+gi]; N = d.f > 0 ? Math.floor(F / d.f) * d.n : d.n; } }
+  const L = F * d.c * (1 - G) * (1 - H) * (1 - I), kk = p.F > 0 ? Math.max(1, Math.floor(F / p.F + 1e-9)) : 1;
+  const parts = []; let costX = 0, qtyX = 0, warn = null;
+  const add = (n, gift, price, sameFlag) => {
+    if (!(n > 0)) return;
+    n *= kk;
+    if (sameFlag || (gift && gift.ty === 's' && gift.k === d.b)) { qtyX += n; parts.push('tặng ' + n + ' cùng loại'); }
+    else if (!gift && price == null) { warn = 'Thiếu giá quà'; }
+    else { const pr = gift && gift.p != null ? gift.p : price; if (!(pr > 0)) warn = 'Thiếu giá quà'; costX += n * (pr || 0); parts.push('tặng ' + n + ' ' + (gift ? giftName(gift.l).replace(/^18 /, '') : 'gói DG Selsun 5ml')); }
+  };
+  const pri = specPrimary(d, p);
+  if (pri) { add(pri.n, pri.gift, pri.price, pri.same); if (pri.second) add(pri.second, null, null, true); }
+  let qtyO = 0, costO = 0;
+  if (Og && Og.ty === 's') qtyO = N;
+  if (Og && Og.ty === 'x') { costO = N * (Og.p || 0); if (N > 0 && !(Og.p > 0)) warn = 'Thiếu giá quà tặng chéo'; }
+  if (I > 0) parts.unshift('CK đặc biệt ' + +(I * 100).toFixed(2) + '%');
+  if (H > 0) parts.push('CK CTKM quý ' + +(H * 100).toFixed(2) + '%');
+  if (N > 0 && Og) parts.push('CTKM quý: tặng ' + N + ' ' + (Og.ty === 's' ? 'cùng loại' : giftName(Og.l)));
+  const units = F + qtyO + qtyX, denom = units * M, pay = L - costO - costX;
+  return { F, L, pay, units, parts, warn, P: !warn && denom > 0 ? pay / denom : null };
+}
+const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/' + pUnit(d) : 'thiếu giá quà') : '';
 function specialLines(d) {
   const n = qtyOf[d.w] || 0;
   return specialsOf(d.w).map(p => {
@@ -1045,14 +1091,17 @@ function specialLines(d) {
     const qk = k => T > 0 && d.c > 0 ? Math.ceil(k * T / cNet(d) - 1e-9) : k * need;
     const hasGift = p.same > 0 || p.cq > 0;   // có quà thì mua gấp đôi mốc được gấp đôi quà: có nút 1, 2, 3 suất
     const prog = p.lab || p.title;
-    let act = '';
+    let act = '', box = '';
     if (need > 0) {
-      if (hasGift && need > 1) act = chipsHtml(d, [1, 2, 3].map(k => ({ qty: qk(k), sub: k + ' suất' })), prog);
-      else act = (n >= need ? '<span class="thr-ok">✓ Đủ mức (riêng sản phẩm này)</span>' : '') + (n !== need ? setBtn(d, need, prog) : '');
+      const rn = n >= need ? specCalc(d, p, n) : null;   // giá cuối ở số lượng đang đặt (khi đã đủ mức)
+      if (rn) box = '<div class="spc"><b>' + (rn.P != null ? 'Giá cuối theo chương trình này: ' + fmt(rn.P) + '<small> /' + esc(pUnit(d)) + '</small>' : 'Chưa tính được giá cuối (thiếu giá quà)') + '</b>' +
+        '<div class="spc-s">' + n + ' ' + esc(d.u || 'sp') + (rn.units > n ? ' + tặng ' + (rn.units - n) + ' ' + esc(d.u || 'sp') : '') + ' · thanh toán ' + fmt(rn.pay) + (rn.parts.length ? ' · gồm: ' + esc(rn.parts.join(' · ')) : '') + '</div></div>';
+      if (hasGift && need > 1) act = chipsHtml(d, [1, 2, 3].map(k => ({ qty: qk(k), sub: k + ' suất', price: specPriceTxt(d, specCalc(d, p, qk(k))) })), prog);
+      else act = (n >= need ? '<span class="thr-ok">✓ Đủ mức (riêng sản phẩm này)</span>' : '') + (n !== need ? setBtn(d, need, prog, specPriceTxt(d, specCalc(d, p, need))) : '');
     }
     return '<div class="thr dbt"><div class="thr-m"><b>' + esc(prog) + '</b>' + expText(p.e) + '</div>' +
       '<div class="thr-c">' + esc(p.full || p.cond || '') + '</div>' +
-      '<div class="thr-f"><span class="thr-note">' + (p.stack ? 'cộng được với CTKM quý' : 'KHÔNG cộng CTKM quý') + ' · giá xem ở Tính giá</span></div>' + act + '</div>';
+      '<div class="thr-f"><span class="thr-note">' + (p.stack ? 'cộng được với CTKM quý' : 'KHÔNG cộng CTKM quý') + (need > 0 || p.fixed == null ? '' : ' · giá xem ở Tính giá') + '</span></div>' + box + act + '</div>';
   }).join('') + pinfoLines(d);
 }
 
