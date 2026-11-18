@@ -510,6 +510,24 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 .spc b small{font-size:12px;font-weight:600}
 .spc-s{margin-top:2px;font-size:12px;color:var(--muted)}
 
+/* MẪU 4 (người dùng chọn 18/11/2026): dải màu trái + biểu tượng tròn + thanh dày có chữ; cam THIẾU, vàng GẦN ĐỦ (từ 75%), ngọc ĐÃ ĐỦ */
+:root{--st-short:#C2410C;--st-near:#B45309;--st-ok:#0B7F58}
+.mx-row{border-left:6px solid transparent;padding-left:10px}
+.mx-row.st-short,.mixbar.st-short{border-left:6px solid var(--st-short)}
+.mx-row.st-near,.mixbar.st-near{border-left:6px solid var(--st-near)}
+.mx-row.st-ok,.mixbar.st-ok{border-left:6px solid var(--st-ok)}
+.t4{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.t4 .ic{width:26px;height:26px;border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none}
+.st-short .t4 .ic{background:var(--st-short)}.st-near .t4 .ic{background:var(--st-near)}.st-ok .t4 .ic{background:var(--st-ok)}
+.t4 .ti{flex:1;min-width:0}.t4 .ti b{display:block;font-size:13px;line-height:1.3}
+.t4 .stt{font-size:12px;font-weight:700}
+.st-short .t4 .stt{color:var(--st-short)}.st-near .t4 .stt{color:var(--st-near)}.st-ok .t4 .stt{color:var(--st-ok)}
+.mx-bar4{height:22px;border-radius:7px;background:#E6EEEC;overflow:hidden;margin:2px 0 4px}
+.mx-bar4 i{display:flex;height:100%;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:12px;font-weight:800;min-width:46px;box-sizing:border-box;font-style:normal;white-space:nowrap}
+.mx-bar4.st-short i{background:var(--st-short)}.mx-bar4.st-near i{background:var(--st-near)}.mx-bar4.st-ok i{background:var(--st-ok)}
+.mixbar .mx-bar4{margin:7px 0 5px}
+.cart-mok .mx-row,.cart-spec .mx-row{padding:8px 0 8px 10px}
+
 </style>
 </head>
 <body>
@@ -1329,11 +1347,18 @@ function mixHead(s) {
   return { label, thrText, full: label + (thrText ? ' · ' + thrText : '') };
 }
 // Một dòng mốc: nhãn loại, tên, trạng thái, thanh tiến độ, số liệu
+/* Dải tiến độ mốc theo MẪU 4 (người dùng chọn 18/11/2026): THIẾU (cam, dấu !) · GẦN ĐỦ (vàng, mũi tên ↑, từ 75% mốc) · ĐÃ ĐỦ (ngọc, dấu ✓); dải màu bên trái, thanh dày có chữ (phần trăm hoặc số suất) */
+function mxState(st) { return st.ok ? 'ok' : (st.pct >= 75 ? 'near' : 'short'); }
+const MX_ICON = { short: '!', near: '↑', ok: '✓' }, MX_LAB = { short: 'THIẾU', near: 'GẦN ĐỦ', ok: 'ĐÃ ĐỦ' };
+function mxStatusText(s, st) {
+  if (st.ok) return 'ĐÃ ĐỦ · đủ ' + (st.k > 1 ? st.k + ' suất' : '1 suất') + (st.rest > 1e-6 ? ' · thêm ' + fmtMix(s, st.rest) + ' lên suất ' + (st.k + 1) : '');
+  return MX_LAB[mxState(st)] + ' · cần thêm ' + fmtMix(s, st.rest);
+}
+function mxBar4(st) { return '<div class="mx-bar4 st-' + mxState(st) + '"><i style="width:' + (st.ok ? 100 : st.pct) + '%">' + (st.ok ? st.k + ' suất' : Math.round(st.pct) + '%') + '</i></div>'; }
 function mixRow(s, st, withBrands, noBtn, noTitle) {
   const tag = s.kind === 'q' ? '<i class="mxtag q">CTKM quý</i>' : '<i class="mxtag d">CTKM đặc biệt</i>';
-  const state = st.ok ? '✓ đủ' + (st.k > 1 ? ' ' + st.k + ' suất' : '') : 'thiếu ' + fmtMix(s, st.rest);
+  const kk = mxState(st);
   const bits = [fmtMix(s, st.t) + ' / ' + fmtMix(s, s.thr)];
-  if (st.ok) bits.push('đơn này ' + (st.k > 1 ? st.k + ' suất' : 'đủ 1 suất') + (st.rest > 1e-6 ? ', còn thiếu ' + fmtMix(s, st.rest) + ' để suất ' + (st.k + 1) : ''));
   if (!s.cond && s.reward) bits.push(s.reward);
   if (s.kind === 'd' && s.id.charAt(0) !== 'i' && !s.full) {   // có nguyên văn công ty thì không ghi lại ý cộng / không cộng CTKM quý
     bits.push(s.stack ? 'cộng được CTKM quý' : 'KHÔNG cộng CTKM quý');
@@ -1344,8 +1369,8 @@ function mixRow(s, st, withBrands, noBtn, noTitle) {
   const extra = s.members.size > 1 ? '<div class="s">Gồm ' + s.members.size + ' sản phẩm · nhãn ' + esc(bl.slice(0, 4).join(', ') + (bl.length > 4 ? '…' : '')) + '</div>' : '';
   let warn = '';
   if (st.ok && s.req && !DATA.some(d => (qtyOf[d.w] || 0) > 0 && norm(d.t).includes(norm(s.req.replace(/^1\s*/, ''))))) warn = '<div class="s warn-t">⚠ Nhớ điều kiện bắt buộc: ' + esc(s.req) + '</div>';
-  return '<div class="mx-row' + (st.ok ? ' ok' : '') + '">' + (noTitle ? '' : '<div class="t"><span>' + tag + esc(mixHead(s).full) + (s.sub ? ' · ' + esc(s.sub) : '') + '</span><em>' + state + '</em></div>') +
-    '<div class="mx-bar"><i style="width:' + st.pct + '%"></i></div><div class="s">' + bits.map(esc).join(' · ') + '</div>' + condHtml + extra + warn +
+  return '<div class="mx-row st-' + kk + (st.ok ? ' ok' : '') + '"><div class="t4"><span class="ic">' + MX_ICON[kk] + '</span><div class="ti">' + (noTitle ? '' : '<b>' + tag + esc(mixHead(s).full) + (s.sub ? ' · ' + esc(s.sub) : '') + '</b>') + '<div class="stt">' + esc(mxStatusText(s, st)) + '</div></div></div>' +
+    mxBar4(st) + '<div class="s">' + bits.map(esc).join(' · ') + '</div>' + condHtml + extra + warn +
     (noBtn || s.members.size < 2 ? '' : '<button type="button" class="mx-order" data-mxo="' + esc(s.id) + '">Đặt đơn ' + esc(mixHead(s).full) + ' ›</button>') + '</div>';
 }
 // Thanh "Đơn hỗn hợp" trong một nhãn hàng: luôn hiện (kể cả khi đơn còn trống) để anh biết nhãn này có mốc ghép đơn.
@@ -1364,8 +1389,8 @@ function mixBrandStrip(b) {
       '<div class="mx-sub">Trộn các sản phẩm cùng nhóm để đủ mốc quà hoặc CK.</div>' + btn + '</div>';
   }
   const best = act.slice().sort(rank)[0], allOk = best.st.ok;
-  return '<div class="mixbar' + (allOk ? ' ok-bar' : '') + '"><div class="mx-top"><b>Đơn hỗn hợp · ' + (allOk ? 'đã đủ mốc' : 'gần đạt nhất') + '</b><span>' + (allOk ? esc(mixHead(best.s).full) : 'còn thiếu ' + fmtMix(best.s, best.st.rest)) + '</span></div>' +
-    '<div class="mx-bar"><i style="width:' + best.st.pct + '%"></i></div>' +
+  return '<div class="mixbar st-' + mxState(best.st) + (allOk ? ' ok-bar' : '') + '"><div class="mx-top"><b>Đơn hỗn hợp · ' + (allOk ? 'đã đủ mốc' : 'gần đạt nhất') + '</b><span>' + (allOk ? esc(mixHead(best.s).full) : 'còn thiếu ' + fmtMix(best.s, best.st.rest)) + '</span></div>' +
+    mxBar4(best.st) +
     '<div class="mx-sub">' + (best.s.kind === 'q' ? 'CTKM quý' : 'CTKM đặc biệt') + ' · ' + esc(mixHead(best.s).full) + ' · ' + fmtMix(best.s, best.st.t) + ' / ' + fmtMix(best.s, best.s.thr) + '</div>' + btn + '</div>';
 }
 // Thanh trên cùng của một chương trình đang mở (cách xem theo chương trình): mọi mốc của chương trình, kể cả chưa có sản phẩm
@@ -1374,9 +1399,9 @@ function mixProgStrip(g) {
   if (!subs.length) return '';
   const rows = subs.map(s => ({ s, st: subStat(s) }));
   const best = rows.slice().sort((a, b2) => (a.st.ok - b2.st.ok) || (b2.st.pct - a.st.pct))[0];
-  const head = '<div class="mixbar' + (best.st.ok ? ' ok-bar' : '') + '"><div class="mx-top"><b>' + (best.st.ok ? '✓ Đơn này đã đủ' : 'Đơn này') + '</b><span>' +
+  const head = '<div class="mixbar st-' + mxState(best.st) + (best.st.ok ? ' ok-bar' : '') + '"><div class="mx-top"><b>' + (best.st.ok ? '✓ Đơn này đã đủ' : 'Đơn này') + '</b><span>' +
     (best.st.ok ? esc(best.s.reward || 'nhận ưu đãi') : 'còn thiếu ' + fmtMix(best.s, best.st.rest)) + '</span></div>' +
-    '<div class="mx-bar"><i style="width:' + best.st.pct + '%"></i></div><div class="mx-sub">' + fmtMix(best.s, best.st.t) + ' / ' + fmtMix(best.s, best.s.thr) +
+    mxBar4(best.st) + '<div class="mx-sub">' + fmtMix(best.s, best.st.t) + ' / ' + fmtMix(best.s, best.s.thr) +
     (best.s.reward ? ' → ' + esc(best.s.reward) : '') + '</div></div>';
   return head + (rows.length > 1 ? '<div class="mx-list">' + rows.map(x => mixRow(x.s, x.st, false)).join('') + '</div>' : '');
 }
