@@ -603,6 +603,11 @@ body{font-variant-numeric:tabular-nums}
 .ps-t span{font-size:13px;color:var(--muted);font-weight:600}
 .ps-x{flex:none;width:40px;height:40px;border:0;border-radius:12px;background:var(--surface-2);color:var(--muted);font-size:16px;cursor:pointer}
 @media (min-width:1024px){.card.po .psheet{align-items:center}.ps-card{border-radius:18px;padding-bottom:14px}}
+/* Chạm tên/giá mở ngăn khuyến mãi (iPhone cần cursor:pointer mới nhận chạm vào khối không phải nút) */
+.card:has(.pline) .cname{cursor:pointer}
+/* Khi ngăn đang mở bỏ hiệu ứng nhấn nhẹ: thẻ có transform làm ngăn (position:fixed) lệch vị trí lúc chạm nên ✕ không đóng được trên iPhone */
+.card.po,.card.po:active{transform:none}
+.psheet{cursor:pointer}.ps-card{cursor:auto}
 
 </style>
 </head>
@@ -2066,8 +2071,11 @@ document.addEventListener('click', e => {
     if (bar) { openSheet(true); return; }
     const ps = t.closest('.psheet');   // chạm nền mờ ngoài ngăn: đóng
     if (ps && t === ps) { const cd = ps.closest('.card'), w = +cd.dataset.w; popen.delete(w); cd.outerHTML = card(DATA.find(x => x.w === w)); return; }
-    const nm = t.closest('.cname');   // bấm tên sản phẩm: mở/đóng chi tiết khuyến mãi
-    if (nm) { const det = nm.closest('.card').querySelector('.cdetail'); det.hidden = !det.hidden; }
+    const nm = t.closest('.cname');   // chạm tên hoặc giá sản phẩm: mở ngăn khuyến mãi (chỉ khi sản phẩm có khuyến mãi; người dùng chọn 19/11/2026)
+    if (nm && !t.closest('.psheet')) {
+      const cd = nm.closest('.card'), w = +cd.dataset.w, d = DATA.find(x => x.w === w);
+      if (d && cd.querySelector('.pline')) { popen.add(w); if (quyKind(d) && specialCount(d) > 0 && !tabOf[w]) tabOf[w] = 'q'; cd.outerHTML = card(d); }
+    }
     return;
   }
   if (b.dataset.vact !== undefined) {   // + / − của từng mã (Tone Up…)
