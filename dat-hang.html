@@ -553,6 +553,39 @@ body{font-variant-numeric:tabular-nums}
 .swr.open .cline{transform:translateX(-132px)}
 @media (prefers-reduced-motion:reduce){.swr .cline{transition:none}}
 
+/* ===== 3 BƯỚC (mẫu 10): thanh dưới Chọn · Số lượng · Đơn hàng, ngăn Số lượng, thanh bước trên ngăn ===== */
+:root{--navh:calc(64px + env(safe-area-inset-bottom))}
+.stepnav{position:fixed;left:0;right:0;bottom:0;z-index:55;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(29,43,83,.10);padding-bottom:env(safe-area-inset-bottom)}
+.stepnav button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 4px 8px;min-height:64px;color:var(--muted);cursor:pointer;font-family:inherit}
+.stepnav i{font-style:normal;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--muted)}
+.stepnav b{font-size:13px;font-weight:800;line-height:1.1}
+.stepnav span{font-size:11.5px;color:var(--muted);font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stepnav button.on{color:var(--primary)}
+.stepnav button.on i{background:var(--primary);border-color:var(--primary);color:#fff}
+.stepnav button.on span{color:var(--primary)}
+.stepbar{display:flex;gap:5px;margin:-4px 0 2px}
+.stepbar i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.stepbar i.on{background:var(--primary)}
+.stepk{display:block;font-size:12px;font-weight:700;color:#9A3F18;letter-spacing:.02em}
+.qs-list{display:flex;flex-direction:column;gap:8px}
+.qs-row{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line)}
+.qs-t{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.qs-t b{font-size:14px}
+.qs-t span{font-size:12px;color:var(--muted)}
+.qs-g{font-size:12px;font-weight:600}.qs-g.ok{color:var(--quy-ink)}.qs-g.bad{color:var(--bad)}
+.qs-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.qs-p{font-size:14px}
+.qs-r .stepper button{width:38px;height:40px}.qs-r .stepper input{width:46px}
+#qsNext:disabled{opacity:.45}
+@media (max-width:1023px){
+  .app{padding-bottom:calc(var(--navh) + 24px)}
+  .cart{bottom:var(--navh);max-height:calc(88vh - var(--navh));max-height:calc(88dvh - var(--navh))}
+  .totop{bottom:calc(var(--navh) + 12px)}
+}
+@media (min-width:1024px){.stepnav,.qsheet,.stepbar{display:none!important}}
+.qsheet .cf-btns{display:block}
+.qsheet .cf-btns .copy{width:100%;min-height:48px}
+
 </style>
 </head>
 <body>
@@ -582,6 +615,7 @@ body{font-variant-numeric:tabular-nums}
     <section class="catalog" id="catalog" aria-live="polite"></section>
 
     <aside class="cart" id="cart" aria-label="Đơn hàng">
+      <div class="stepbar sb3" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i></div>
       <div class="cart-head">
         <h2>Đơn hàng <small id="cartTot" class="cart-tot"></small></h2>
         <div class="cart-acts"><button class="ghost" id="clear" type="button">Xóa đơn</button><button class="ghost cartclose" id="cartClose" type="button">← Quay lại</button></div>
@@ -603,11 +637,21 @@ body{font-variant-numeric:tabular-nums}
     </aside>
   </main>
 
-  <div class="mobilebar" id="mobilebar">
-    <div id="mCart" class="mcart" role="button" tabindex="0" aria-label="Mở giỏ hàng"><span id="mCount">0 sản phẩm</span><b id="mPay">0đ</b></div>
-    <button id="mOpen" type="button">Xem đơn ›</button>
-  </div>
+  <nav class="stepnav" id="mobilebar" aria-label="Các bước đặt hàng">
+    <button type="button" data-st="pick" class="on"><i>1</i><b>Chọn</b><span>sản phẩm</span></button>
+    <button type="button" data-st="qty"><i>2</i><b>Số lượng</b><span id="mCount">Chưa chọn</span></button>
+    <button type="button" id="mOpen" data-st="cart"><i>3</i><b>Đơn hàng</b><span id="mPay">0đ</span></button>
+  </nav>
 </div>
+<aside class="cart qsheet" id="qtySheet" aria-label="Bước 2: Số lượng">
+  <div class="stepbar" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></div>
+  <div class="cart-head"><h2><small class="stepk">Bước 2 / 3</small>Số lượng</h2><div class="cart-acts"><button class="ghost cartclose" id="qsClose" type="button">← Chọn thêm</button></div></div>
+  <div id="qtyList" class="qs-list"></div>
+  <div class="cart-foot">
+    <div class="cf-tot"><span>Tổng thanh toán</span><b id="qsPay">0đ</b></div>
+    <div class="cf-btns"><button class="copy" id="qsNext" type="button">Tiếp: Đơn hàng ›</button></div>
+  </div>
+</aside>
 <button type="button" id="toTop" class="totop" hidden aria-label="Lên đầu trang">↑</button>
 <div class="sheet-bg" id="sheetBg" hidden></div>
 <section class="osheet msheet" id="mixSheet" role="dialog" aria-label="Đặt đơn hỗn hợp" hidden>
@@ -1908,13 +1952,13 @@ function renderCart() {
   $('sCk').textContent = '−' + fmt(Math.max(0, disc));
   $('sGift').textContent = gift > 0 ? '−' + fmt(gift) : '0đ';
   $('sPay').textContent = fmt(pay);
-  $('mCount').textContent = cnt > 0 ? 'Đơn hàng · ' + cnt + ' sản phẩm' : 'Đơn hàng trống';
+  $('mCount').textContent = cnt > 0 ? cnt + ' sản phẩm' : 'Chưa chọn';
   $('cartTot').textContent = cnt > 0 ? cnt + ' sản phẩm · ' + fmt(pay) : '';
   $('mPay').textContent = fmt(pay);
   $('heroPay').textContent = fmt(pay);
   $('heroCnt').textContent = cnt > 0 ? cnt + ' sản phẩm' : 'đơn trống';
   $('copy').disabled = cnt === 0;
-  $('mOpen').disabled = cnt === 0;
+  renderQty();
   let note = '';
   if (anyMiss) note = 'Chưa tính đủ: thiếu giá quà chéo, xem dòng đỏ.';
   else if (anyWarn) note = anyWarn + '.';
@@ -2079,7 +2123,15 @@ document.addEventListener('click', e => {
   }
   if (b.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (b.id === 'clear') { Object.keys(qtyOf).forEach(k => delete qtyOf[k]); saveCart(); renderCatalog(); renderCart(); return; }
-  if (b.id === 'mOpen') { openSheet(true); return; }
+  if (b.dataset.st) {   // thanh dưới 3 bước
+    closeOrderSheet(); closeMixSheet();
+    if (b.dataset.st === 'pick') { openSheet(false); openQty(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else if (b.dataset.st === 'qty') openQty(true);
+    else openSheet(true);
+    return;
+  }
+  if (b.id === 'qsClose') { openQty(false); return; }
+  if (b.id === 'qsNext') { openQty(false); openSheet(true); return; }
   if (b.id === 'copy') { openOrderSheet(); return; }
   if (b.id === 'cartClose' || b.id === 'cartBack') { openSheet(false); return; }
   if (b.dataset.mxedit !== undefined) { openSheet(false); openMixSheet(b.dataset.mxedit); return; }
@@ -2122,6 +2174,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   if (e.target.matches('#msList input')) { setQty(+e.target.closest('.msrow').dataset.w, e.target.value); return; }
   if (e.target.matches('.vrow input')) { const row = e.target.closest('.vrow'); setVar(+row.dataset.vw, row.dataset.vid, e.target.value); return; }
+  if (e.target.matches('#qtyList input')) { setQty(+e.target.closest('.qs-row').dataset.w, e.target.value); return; }
   if (e.target.matches('.stepper input')) setQty(+e.target.closest('.card').dataset.w, e.target.value);
 });
 document.addEventListener('focusin', e => {
@@ -2130,7 +2183,7 @@ document.addEventListener('focusin', e => {
 window.addEventListener('scroll', () => { $('toTop').hidden = (window.scrollY || 0) < 700; }, { passive: true });
 window.addEventListener('resize', updateSbh);
 $('q').addEventListener('input', e => { query = e.target.value; renderCatalog(); });
-$('sheetBg').addEventListener('click', () => { openSheet(false); closeOrderSheet(); closeMixSheet(); });
+$('sheetBg').addEventListener('click', () => { openSheet(false); openQty(false); closeOrderSheet(); closeMixSheet(); });
 $('msQ').addEventListener('input', e => { const kw = norm(e.target.value).trim().split(/\s+/).filter(Boolean); document.querySelectorAll('#msList .msrow').forEach(r => { r.hidden = !kw.every(k => r.dataset.k.includes(k)); }); });
 
 // ---- Gửi đơn: xem trước nội dung (sửa được), rồi chia sẻ (Zalo, tin nhắn…) hoặc sao chép
@@ -2165,8 +2218,41 @@ function shareOrderText() {
 // Giỏ hàng trên điện thoại (ngăn trượt lên); trên máy tính giỏ luôn hiện bên phải
 function openSheet(on) {
   $('cart').classList.toggle('open', on);
-  $('sheetBg').hidden = !on && $('orderSheet').hidden;
+  if (on) $('qtySheet').classList.remove('open');
+  $('sheetBg').hidden = !on && $('orderSheet').hidden && !$('qtySheet').classList.contains('open');
   if (on) $('sheetBg').hidden = false;
+  syncNav();
+}
+
+/* ---- 3 BƯỚC (mẫu 10, người dùng chọn 19/11/2026): 1 Chọn · 2 Số lượng · 3 Đơn hàng; thanh dưới trên điện thoại */
+function openQty(on) {
+  $('qtySheet').classList.toggle('open', on);
+  if (on) { $('cart').classList.remove('open'); renderQty(); $('sheetBg').hidden = false; $('qtySheet').scrollTop = 0; }
+  else $('sheetBg').hidden = $('orderSheet').hidden && !$('cart').classList.contains('open');
+  syncNav();
+}
+function syncNav() {
+  const st = $('cart').classList.contains('open') ? 'cart' : $('qtySheet').classList.contains('open') ? 'qty' : 'pick';
+  document.querySelectorAll('#mobilebar button').forEach(b => b.classList.toggle('on', b.dataset.st === st));
+}
+function renderQty() {
+  const box = $('qtyList'); if (!box) return;
+  const rows = [];
+  DATA.forEach(d => {
+    const n = qtyOf[d.w] || 0; if (n <= 0) return;
+    const r = calcQuy(d, n), fixed = !!VARIANTS[d.w];
+    let g = '';
+    if (r.skip) g = '<div class="qs-g" style="color:var(--muted)">Xem giá ở trang Tính giá</div>';
+    else if (r.miss) g = '<div class="qs-g bad">Thiếu giá quà ' + esc(r.giftName) + '</div>';
+    else if (r.N > 0) g = '<div class="qs-g ok">✓ Tặng ' + r.N + ' ' + esc(r.giftName) + '</div>';
+    else if (hasQuy(d)) g = '<div class="qs-g" style="color:var(--muted)">Chưa đủ ' + fmt(d.e) + ' để nhận quà</div>';
+    rows.push('<div class="qs-row" data-w="' + d.w + '"><div class="qs-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + (!r.skip && r.P != null ? ' · giá cuối ' + fmt(r.P) : '') + '</span>' + g + (fixed ? '<span>Sản phẩm nhiều mã: đổi từng mã ở thẻ sản phẩm</span>' : '') + '</div>' +
+      '<div class="qs-r"><div class="stepper" role="group"><button type="button" data-msd="' + d.w + '" aria-label="Giảm"' + (fixed ? ' disabled' : '') + '>−</button><input type="number" inputmode="numeric" min="0" step="1" value="' + n + '" aria-label="Số lượng ' + esc(shortName(d)) + '"' + (fixed ? ' readonly' : '') + '><button type="button" data-msi="' + d.w + '" aria-label="Tăng"' + (fixed ? ' disabled' : '') + '>+</button></div>' +
+      '<b class="qs-p">' + (r.skip ? '—' : fmt(r.pay)) + '</b></div></div>');
+  });
+  box.innerHTML = rows.length ? rows.join('') : '<div class="cart-empty"><p>Chưa có sản phẩm. Quay lại bước 1 để chọn.</p></div>';
+  $('qsPay').textContent = $('sPay').textContent;
+  $('qsNext').disabled = !rows.length;
 }
 
 function flash(msg) {
