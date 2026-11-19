@@ -609,6 +609,32 @@ body{font-variant-numeric:tabular-nums}
 .card.po,.card.po:active{transform:none}
 .psheet{cursor:pointer}.ps-card{cursor:auto}
 
+/* ===== Ý 2 (19/11/2026): thẻ chương trình gọn, kết quả trước, luật gấp sau "Xem điều kiện" ===== */
+.thr.px{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--dbt)}
+.thr.px.px-best{border-color:var(--dbt)}
+.px-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.px-h b{font-size:14px;color:var(--dbt-ink);line-height:1.3}
+.px-b{display:flex;flex-wrap:wrap;gap:6px}
+.pb{font-style:normal;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.pb.ok{background:var(--quy-soft);color:var(--quy-ink);border-color:transparent}
+.pb.no{background:#FFF1DB;color:#8A4B0B;border-color:transparent}
+.pb.best{background:var(--dbt);color:#fff;border-color:transparent}
+.px-g{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.px-gt{font-size:13px;line-height:1.4}
+.px-gn{font-size:13px}
+.px-gc{font-size:12px;color:var(--muted)}
+.px-ga{display:flex;flex-wrap:wrap;gap:8px}
+.px-add,.px-mix{flex:1 1 140px;min-height:44px;border-radius:12px;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit}
+.px-add{border:0;background:var(--primary);color:var(--primary-ink)}
+.px-mix{border:1.5px solid var(--primary);background:var(--surface);color:var(--primary)}
+details.px-c,details.px-r,details.px-more{border:0}
+.px-c>summary,.px-r>summary,.px-more>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--primary);padding:8px 0;list-style:none}
+.px-c>summary::-webkit-details-marker,.px-r>summary::-webkit-details-marker,.px-more>summary::-webkit-details-marker{display:none}
+.px-c>summary::after,.px-r>summary::after,.px-more>summary::after{content:" ⌄"}
+.px-c[open]>summary::after,.px-r[open]>summary::after,.px-more[open]>summary::after{content:" ⌃"}
+.px-more{margin-top:4px}
+.px-more>.thr.px{margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -1204,9 +1230,40 @@ function specCalc(d, p, F) {
   return { F, L, pay, units, parts, warn, P: !warn && denom > 0 ? pay / denom : null };
 }
 const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/' + pUnit(d) : 'thiếu giá quà') : '';
+/* ---- Ý 2 (người dùng chọn 19/11/2026): thẻ chương trình trong ngăn = TÊN + nhãn loại + KẾT QUẢ trước, luật nguyên văn gấp sau "Xem điều kiện".
+   Chương trình tính chung cả NHÓM (mũ 30 chai, túi Tote, Lipcare, Acnes+Oxy…): tiến độ lấy từ CẢ ĐƠN HÀNG (người dùng chốt: tính cả đơn; không có ô "đã mua trước đó", anh tự nhớ) kèm nút "+ Thêm N chai" và "Trộn sản phẩm khác ›".
+   Chương trình có giá: rẻ nhất xếp trên cùng có dấu "Rẻ nhất", các chương trình còn lại gom "+N chương trình nữa". */
+function subFor(d, key, cond) { return allSubs().find(x => x.prog === key && x.members.has(d.w) && x.members.size > 1 && (cond === undefined || x.cond === cond)) || null; }
+function groupBlock(d, sb) {
+  const st = subStat(sb), kk = mxState(st), du = esc(d.u || 'sp');
+  const where = brandsOf(sb).slice(0, 2).join(', ');
+  const addN = st.ok ? 0 : (sb.tk === 'money' ? Math.ceil(st.rest / cNet(d) - 1e-9) : Math.ceil(st.rest / (sb.weight[d.w] || 1) - 1e-9));
+  return '<div class="px-g st-' + kk + '"><div class="px-gt">Tính chung ' + sb.members.size + ' sản phẩm' + (where ? ' (' + esc(where) + ')' : '') + ': đủ <b>' + esc(fmtMix(sb, sb.thr)) + '</b> → ' + esc(sb.reward) + '</div>' +
+    mxBar4(st) +
+    '<div class="px-gn">' + (st.ok ? '✓ Cả đơn đang có <b>' + esc(fmtMix(sb, st.t)) + '</b> · đủ mốc' : 'Cả đơn đang có <b>' + esc(fmtMix(sb, st.t)) + '</b> / ' + esc(fmtMix(sb, sb.thr)) + ' · còn thiếu <b>' + esc(fmtMix(sb, st.rest)) + '</b>') + '</div>' +
+    '<div class="px-gc">' + (sb.cum ? 'Cộng dồn: đơn này góp, các đơn khác cộng thêm' : 'Phải đủ trong MỘT đơn hàng') + '</div>' +
+    '<div class="px-ga">' + (addN > 0 ? '<button type="button" class="px-add" data-padd="' + d.w + '" data-n="' + addN + '">+ Thêm ' + addN + ' ' + du + '</button>' : '') +
+    '<button type="button" class="px-mix" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '">Trộn sản phẩm khác ›</button></div></div>';
+}
+function progCard(o) {
+  const badges = (o.stack ? '<i class="pb ok">Cộng CTKM quý</i>' : '<i class="pb no">KHÔNG cộng CTKM quý</i>') + (o.group ? (o.cum ? '<i class="pb">Cộng dồn</i>' : '<i class="pb">Phải đủ trong 1 đơn</i>') : '');
+  return '<div class="thr dbt px' + (o.best ? ' px-best' : '') + '"><div class="px-h thr-m"><b>' + esc(o.title) + '</b>' + (o.best ? '<i class="pb best">Rẻ nhất</i>' : '') + expText(o.e) + '</div>' +
+    '<div class="px-b">' + badges + '</div>' + (o.warn || '') + (o.group || '') + (o.box || '') + (o.act || '') +
+    '<details class="px-c"><summary>Xem điều kiện</summary><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></details></div>';
+}
+const chipsFold = act => act ? '<details class="px-r"><summary>Đặt riêng sản phẩm này</summary>' + act + '</details>' : '';
+function stackCards(items) {
+  if (!items.length) return '';
+  const priced = items.filter(x => x.P != null).sort((p, q) => p.P - q.P), rest = items.filter(x => x.P == null);
+  const all = priced.concat(rest);
+  if (priced.length >= 2) all[0].o.best = true;
+  const html = all.map(x => progCard(x.o));
+  if (html.length === 1) return html[0];
+  return html[0] + '<details class="px-more"><summary>+' + (html.length - 1) + ' chương trình nữa</summary>' + html.slice(1).join('') + '</details>';
+}
 function specialLines(d) {
   const n = qtyOf[d.w] || 0;
-  return specialsOf(d.w).map(p => {
+  const items = specialsOf(d.w).map(p => {
     // đơn hàng theo mốc = số lượng sản phẩm NÀY đủ mốc của chương trình (mốc tiền "ĐH từ N đ" hoặc số mua tối thiểu); pack thì không có
     const need = specNeed(d, p);
     const tm = /ĐH từ\s*([\d.]+)\s*đ/i.exec(p.cond || '');
@@ -1223,14 +1280,16 @@ function specialLines(d) {
       if (hasGift && need > 1) act = chipsHtml(d, [1, 2, 3].map(k => ({ qty: qk(k), sub: k + ' suất', price: specPriceTxt(d, specCalc(d, p, qk(k))) })), prog);
       else act = (n >= need ? '<span class="thr-ok">✓ Đủ mức (riêng sản phẩm này)</span>' : '') + (n !== need ? setBtn(d, need, prog, specPriceTxt(d, specCalc(d, p, need))) : '');
     }
-    return '<div class="thr dbt"><div class="thr-m"><b>' + esc(prog) + '</b>' + expText(p.e) + '</div>' +
-      '<div class="thr-c">' + esc(p.full || p.cond || '') + '</div>' +
-      '<div class="thr-f"><span class="thr-note">' + (p.stack ? 'cộng được với CTKM quý' : 'KHÔNG cộng CTKM quý') + (need > 0 || p.fixed == null ? '' : ' · giá xem ở Tính giá') + '</span></div>' + box + act + '</div>';
-  }).join('') + pinfoLines(d);
+    const sb = subFor(d, 'p' + p.num + ':' + p.title, p.cond);
+    const pr = need > 0 ? specCalc(d, p, need) : null;
+    return { P: pr && pr.P != null ? pr.P : null, o: { title: prog, e: p.e, stack: p.stack, cum: sb ? sb.cum : false, group: sb ? groupBlock(d, sb) : '', box, act: sb ? chipsFold(act) : act, full: p.full || p.cond || '',
+      note: (p.stack ? 'cộng được với CTKM quý' : 'KHÔNG cộng CTKM quý') + (need > 0 || p.fixed == null ? '' : ' · giá xem ở Tính giá') } };
+  });
+  return stackCards(items.concat(pinfoItems(d)));
 }
 
-// Quà không quy ra tiền: mốc tính chung cả nhóm sản phẩm của chương trình; nút chỉ đặt riêng sản phẩm này cho đủ mốc (1, 2, 3 phần nếu cộng dồn)
-function pinfoLines(d) {
+// Quà không quy ra tiền: mốc tính chung cả nhóm sản phẩm của chương trình; tiến độ lấy từ cả đơn hàng; nút đặt riêng sản phẩm này gấp trong "Đặt riêng sản phẩm này"
+function pinfoItems(d) {
   const n = qtyOf[d.w] || 0;
   return pinfoOf(d.w).map(x => {
     const isMoney = x.dv === 'đ', mo = x.mo || 0;
@@ -1244,12 +1303,11 @@ function pinfoLines(d) {
       if (kmax > 1) act = chipsHtml(d, Array.from({ length: kmax }, (_, i) => ({ qty: qk(i + 1), sub: 'tặng ' + (i + 1) + ' ' + esc(x.ten) })), label);
       else act = (n >= need ? '<span class="thr-ok">✓ Đủ mốc (riêng sản phẩm này)</span>' : '') + (n !== need ? setBtn(d, need, label) : '');
     }
-    return '<div class="thr dbt"><div class="thr-m"><b>' + esc(label) + '</b>' + expText(x.e) + '</div>' +
-      '<div class="thr-c">' + esc(x.t) + '</div>' +
-      (x.bb ? '<div class="thr-c"><b>⚠ Nhớ điều kiện bắt buộc: ' + esc(x.bb) + '</b></div>' : '') +
-      '<div class="thr-f"><span class="thr-note">Quà không tính vào giá · ' + (x.cum ? 'cộng dồn' : 'phải đủ trong 1 đơn') + (x.max ? ' · tối đa ' + x.max + ' set mỗi khách' : '') +
-      ' · ' + (x.stack ? 'cộng được CTKM quý' : 'KHÔNG cộng CTKM quý') + ' · mốc tính chung cả nhóm</span></div>' + act + '</div>';
-  }).join('');
+    const sb = allSubs().find(z => z.id === 'i' + PINFO.indexOf(x) && z.members.has(d.w) && z.members.size > 1) || null;
+    return { P: null, o: { title: label, e: x.e, stack: x.stack, cum: !!x.cum, group: sb ? groupBlock(d, sb) : '', act: sb ? chipsFold(act) : act, full: x.t,
+      warn: x.bb ? '<div class="thr-c"><b>⚠ Nhớ điều kiện bắt buộc: ' + esc(x.bb) + '</b></div>' : '',
+      note: 'Quà không tính vào giá · ' + (x.cum ? 'cộng dồn' : 'phải đủ trong 1 đơn') + (x.max ? ' · tối đa ' + x.max + ' set mỗi khách' : '') + ' · ' + (x.stack ? 'cộng được CTKM quý' : 'KHÔNG cộng CTKM quý') + ' · mốc tính chung cả nhóm' } };
+  });
 }
 
 // CTKM quý của CHÍNH sản phẩm này và đơn hàng theo mức. Mọi sản phẩm có CTKM quý đều có nút đặt đơn hàng (kể cả mua từ 1 sản phẩm).
@@ -2196,6 +2254,12 @@ document.addEventListener('click', e => {
     const w = +b.dataset.popen, d = DATA.find(x => x.w === w);
     popen.add(w); if (quyKind(d) && specialCount(d) > 0 && !tabOf[w]) tabOf[w] = 'q';
     b.closest('.card').outerHTML = card(d); return;
+  }
+  if (b.dataset.padd !== undefined) {   // "+ Thêm N chai": cộng thêm cho sản phẩm này cho đủ mốc cả nhóm
+    const w = +b.dataset.padd; popen.delete(w); setQty(w, (qtyOf[w] || 0) + (+b.dataset.n)); return;
+  }
+  if (b.dataset.pmix !== undefined) {   // "Trộn sản phẩm khác ›": đóng ngăn, mở Đơn hỗn hợp của nhóm
+    const w = +b.dataset.pmix, cd = b.closest('.card'); popen.delete(w); cd.outerHTML = card(DATA.find(x => x.w === w)); openMixSheet(b.dataset.sid); return;
   }
   if (b.dataset.pclose !== undefined) {
     const w = +b.dataset.pclose, d = DATA.find(x => x.w === w);
