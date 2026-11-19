@@ -586,6 +586,24 @@ body{font-variant-numeric:tabular-nums}
 .qsheet .cf-btns{display:block}
 .qsheet .cf-btns .copy{width:100%;min-height:48px}
 
+/* ===== Ý 1 (19/11/2026): thẻ sản phẩm chỉ một dòng "● Quý · ● 2 đặc biệt ›"; khuyến mãi mở trong ngăn trượt từ dưới lên ===== */
+.card .ctabs{margin-top:0}
+.pline{display:flex;align-items:center;gap:12px;margin:8px 0 0;padding:6px 2px;min-height:40px;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)}
+.pline .pl{display:inline-flex;align-items:center;gap:6px}
+.pline .pl::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.pline .pl.q{color:var(--quy-ink)}
+.pline .pl.s{color:var(--dbt-ink)}
+.pline i{font-style:normal;margin-left:auto;font-size:18px;color:var(--faint)}
+.psheet{display:none}
+.card.po .psheet{display:flex;position:fixed;inset:0;z-index:48;background:rgba(29,43,83,.45);align-items:flex-end;justify-content:center}
+.ps-card{width:100%;max-width:640px;max-height:84vh;max-height:84dvh;overflow:auto;background:var(--surface);border-radius:22px 22px 0 0;padding:14px 14px calc(var(--navh) + 14px);display:flex;flex-direction:column;gap:10px;box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+.ps-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ps-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ps-t b{font-size:16px;line-height:1.25}
+.ps-t span{font-size:13px;color:var(--muted);font-weight:600}
+.ps-x{flex:none;width:40px;height:40px;border:0;border-radius:12px;background:var(--surface-2);color:var(--muted);font-size:16px;cursor:pointer}
+@media (min-width:1024px){.card.po .psheet{align-items:center}.ps-card{border-radius:18px;padding-bottom:14px}}
+
 </style>
 </head>
 <body>
@@ -695,6 +713,7 @@ const PALETTE = ['#3B4BD8', '#0F9F6E', '#C2410C', '#7C3AED', '#0EA5E9', '#DB2777
 const STORE_KEY = 'dat-hang-don-v1';
 
 const qtyOf = {};              // mã sản phẩm (w) -> số lượng
+const popen = new Set();       // sản phẩm đang mở ngăn khuyến mãi (Ý 1, 19/11/2026)
 const tabOf = {};              // mã sản phẩm -> thẻ đang mở ('q' = CTKM quý, 's' = CTKM đặc biệt, '' = gập); chỉ dùng khi sản phẩm có cả hai
 const progOf = {};             // mã sản phẩm -> chương trình đơn đang đặt theo ('q' hoặc tên CTKM đặc biệt)
 const PROG_KEY = 'dat-hang-chuongtrinh-v1';
@@ -979,7 +998,7 @@ function card(d) {
   if (rules.length) detail += '<div class="rules"><b>Điều kiện của công ty</b>' + rules.map(r => '<div>• ' + esc(r) + '</div>').join('') + '</div>';
   if (!detail) detail = '<div>Không có khuyến mãi</div>';
   const spec = d.q && d.q !== '—' ? esc(d.q) : '';   // quy cách (chai 400ml, tuýp 50g…); không có thì bỏ dòng, giá đã nằm bên phải
-  return '<article class="card' + (n > 0 ? ' in' : '') + '" data-w="' + d.w + '">' +
+  return '<article class="card' + (n > 0 ? ' in' : '') + (popen.has(d.w) ? ' po' : '') + '" data-w="' + d.w + '">' +
     '<div class="crow">' +
       '<div class="cname"><div class="nm">' + esc(shortName(d)) + '</div>' + (spec ? '<div class="spec">' + spec + '</div>' : '') +
         '<div class="cprice"><span class="price">' + fmt(d.c) + '</span><span class="unit">/' + esc(d.u || 'sp') + '</span></div></div>' +
@@ -990,9 +1009,13 @@ function card(d) {
     '</div>' +
     (VARIANTS[d.w] ? varBlock(d, n) : '') +
     cfBlock(d, n) +
+    /* Ý 1 (người dùng chọn 19/11/2026): mỗi thẻ chỉ một dòng nhỏ "● Quý · ● 2 đặc biệt ›"; chi tiết khuyến mãi nằm trong ngăn trượt từ dưới lên (cùng nội dung cũ, chỉ đổi cách hiển thị) */
+    (badges.length ? '<button type="button" class="pline" data-popen="' + d.w + '"' + (popen.has(d.w) ? ' aria-expanded="true"' : '') + '>' +
+      (kindQ ? '<span class="pl q">Quý</span>' : (d.h > 0 ? '<span class="pl q">CK quý</span>' : '')) + (nSp ? '<span class="pl s">' + (nSp > 1 ? nSp + ' ' : '') + 'đặc biệt</span>' : '') + '<i aria-hidden="true">›</i></button>' : '') +
+    '<div class="psheet"><div class="ps-card"><div class="ps-h"><div class="ps-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + '</span></div><button type="button" class="ps-x" data-pclose="' + d.w + '" aria-label="Đóng">✕</button></div>' +
     (badges.length ? '<div class="ctabs">' + badges.join('') + '</div>' : '') +
     (showQ ? thrLine(d, n) : '') + (showS ? specialLines(d) : '') +
-    '<div class="cdetail" hidden>' + detail + '</div>' +
+    '<div class="cdetail" hidden>' + detail + '</div></div></div>' +
   '</article>';
 }
 
@@ -2041,6 +2064,8 @@ document.addEventListener('click', e => {
   if (!b) {
     const bar = t.closest('#mCart');
     if (bar) { openSheet(true); return; }
+    const ps = t.closest('.psheet');   // chạm nền mờ ngoài ngăn: đóng
+    if (ps && t === ps) { const cd = ps.closest('.card'), w = +cd.dataset.w; popen.delete(w); cd.outerHTML = card(DATA.find(x => x.w === w)); return; }
     const nm = t.closest('.cname');   // bấm tên sản phẩm: mở/đóng chi tiết khuyến mãi
     if (nm) { const det = nm.closest('.card').querySelector('.cdetail'); det.hidden = !det.hidden; }
     return;
@@ -2118,7 +2143,7 @@ document.addEventListener('click', e => {
     const el = $('b' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
   }
   if (b.id === 'clearAll') {   // làm lại từ đầu: bỏ mọi số lượng, chương trình và thẻ đang mở, về đầu trang
-    Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
+    Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
     saveCart(); renderCatalog(); renderCart(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
   }
   if (b.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -2159,6 +2184,15 @@ document.addEventListener('click', e => {
   if (b.dataset.resetprog !== undefined) {   // quay lại tính theo CTKM quý
     const w = +b.dataset.resetprog; delete progOf[w]; setQty(w, qtyOf[w] || 0); return;
   }
+  if (b.dataset.popen !== undefined) {   // mở ngăn khuyến mãi của sản phẩm (có cả hai loại thì mở sẵn tab Quý)
+    const w = +b.dataset.popen, d = DATA.find(x => x.w === w);
+    popen.add(w); if (quyKind(d) && specialCount(d) > 0 && !tabOf[w]) tabOf[w] = 'q';
+    b.closest('.card').outerHTML = card(d); return;
+  }
+  if (b.dataset.pclose !== undefined) {
+    const w = +b.dataset.pclose, d = DATA.find(x => x.w === w);
+    popen.delete(w); b.closest('.card').outerHTML = card(d); return;
+  }
   if (b.dataset.tab) {   // nhãn CTKM quý / CTKM đặc biệt: mở đơn hàng của chương trình đó (gập nếu đang mở), vẽ lại riêng thẻ này
     const el = b.closest('.card'), w = +el.dataset.w, d = DATA.find(x => x.w === w);
     tabOf[w] = tabOf[w] === b.dataset.tab ? '' : b.dataset.tab;
@@ -2166,7 +2200,7 @@ document.addEventListener('click', e => {
     return;
   }
   if (b.classList.contains('thrbtn')) {   // đặt đúng số lượng đủ mức của sản phẩm này, ghi nhớ theo chương trình nào
-    const w = +b.dataset.set; progOf[w] = b.dataset.prog || 'q';
+    const w = +b.dataset.set; popen.delete(w); /* chọn xong thì đóng ngăn để thấy số lượng trên thẻ */ progOf[w] = b.dataset.prog || 'q';
     if (b.dataset.opt !== undefined) optOf[w] = +b.dataset.opt;   // chọn ưu đãi của CTKM quý (Selsun 60ml, Gokujyun)
     setQty(w, +b.dataset.n); return;
   }
