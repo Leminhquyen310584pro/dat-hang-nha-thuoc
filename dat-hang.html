@@ -1410,18 +1410,13 @@ function thrLine(d0, n) {
       const giftK = k => d.n > 0 && d.o ? 'tặng ' + k * d.n + ' ' + esc(giftName(d.o)) : k + ' suất';
       const head = kind === 'money' ? 'Mỗi ' + fmt(d.e) + ' (' + need + ' ' + u + ') ' + giftK(1) : 'Mỗi ' + need + ' ' + u + ' ' + giftK(1);
       const stt = reached ? '<div class="thr-ok">✓ Đang đặt ' + n + ' ' + u + ' · đủ ngưỡng</div>' : '';
-      if (same) {
-        return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>Giá cuối ' + fmt(items[0].P) + '/' + unit + ' ở mọi mức · mua gấp đôi thì tặng gấp đôi' + noteGia + '</span></div>' + stt +
-          '<div class="px-ga">' + (n !== need ? '<button type="button" class="thrbtn px-set" data-set="' + d.w + '" data-n="' + need + '" data-prog="q">Đặt ' + need + ' ' + u + '</button>' : '') +
-          '<button type="button" class="px-add" data-padd="' + d.w + '" data-n="' + need + '">+ ' + need + ' ' + u + '</button></div>' + gb + '</div>';
-      }
       const base = items[0].P;
       const rows = items.map(it => {
         const cur = n === it.qty, diff = base - it.P;
         return '<button type="button" class="thrbtn chip rowb' + (cur ? ' on' : '') + '" data-set="' + d.w + '" data-n="' + it.qty + '" data-prog="q"><span class="rb-l"><b>' + it.qty + ' ' + u + ' · ' + it.k + ' suất</b><small>' + giftK(it.k) + '</small></span>' +
-          '<span class="rb-r"><b>' + fmt(it.P) + '/' + unit + '</b><small class="' + (diff > 0.5 ? 'rb-g' : '') + '">' + (it.k === 1 ? 'mức thấp nhất' : diff > 0.5 ? 'rẻ hơn ' + fmt(diff) + '/' + unit : diff < -0.5 ? 'đắt hơn ' + fmt(-diff) + '/' + unit : 'bằng mức thấp nhất') + '</small></span></button>';
+          '<span class="rb-r"><b>' + fmt(it.P) + '/' + unit + '</b><small class="' + (diff > 0.5 ? 'rb-g' : '') + '">' + (same ? 'giá không đổi' : it.k === 1 ? 'mức thấp nhất' : diff > 0.5 ? 'rẻ hơn ' + fmt(diff) + '/' + unit : diff < -0.5 ? 'đắt hơn ' + fmt(-diff) + '/' + unit : 'bằng mức thấp nhất') + '</small></span></button>';
       }).join('');
-      return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>Mua nhiều thì giá mỗi ' + unit + ' thay đổi, chọn mức' + noteGia + ':</span></div>' + stt + '<div class="px-rows">' + rows + '</div>' + gb + '</div>';
+      return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>' + (same ? 'Giá mỗi ' + unit + ' không đổi · mua gấp đôi thì tặng gấp đôi' : 'Mua nhiều thì giá mỗi ' + unit + ' thay đổi') + noteGia + ' · bấm dòng để chọn mức</span></div>' + stt + '<div class="px-rows">' + rows + '</div>' + gb + '</div>';
     }
     return '<div class="thr' + (reached ? ' ok' : '') + '">' + text + chipsHtml(d, items, 'q') + gb + '</div>';
   }
