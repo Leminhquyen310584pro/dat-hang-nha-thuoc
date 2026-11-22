@@ -1119,14 +1119,19 @@ function card(d) {
 
 // Tab "Thông tin sản phẩm" (22/11/2026): bảng như tài liệu đào tạo (hàm lượng, phân loại, công dụng, đối tượng, liều dùng, hướng dẫn) + thành phần
 function infoBlock(x) {
-  const lines = v => { const a = String(v || '').split(String.fromCharCode(10)).filter(Boolean); return a.length > 1 ? '<ul>' + a.map(l => '<li' + (/^\d+\./.test(l) ? ' class="nn"' : '') + '>' + esc(l) + '</li>').join('') + '</ul>' : esc(a[0] || ''); };
+  const NL = String.fromCharCode(10);
+  const lines = v => { const a = String(v || '').split(NL).filter(Boolean); return a.length > 1 ? '<ul>' + a.map(l => '<li' + (/^\d+\./.test(l) ? ' class="nn"' : '') + '>' + esc(l) + '</li>').join('') + '</ul>' : esc(a[0] || ''); };
   const t = x.tp || {};
-  const rows = (x.rows || []).map(r => '<tr><th>' + esc(r[0]) + '</th><td>' + lines(r[1]) + '</td></tr>').join('');
+  /* 22/11/2026 (người dùng: "bổ sung đầy đủ các thành phần"): dòng "Thành phần" nằm NGAY trong bảng, liệt kê đủ hoạt chất và các chất còn lại */
+  const tpText = t.inci && t.inci.length ? 'Danh sách đầy đủ (' + t.inci.length + ' chất, theo thứ tự trên trang): ' + t.inci.join(', ') + '.'
+    : 'Hoạt chất: ' + (t.hoat_chat || '') + (t.cac_chat ? NL + 'Các chất còn lại: ' + t.cac_chat : '');
+  const list = (x.rows || []).slice();
+  list.splice(list.length && list[0][0] === 'Hàm lượng' ? 1 : 0, 0, ['Thành phần', tpText]);
+  const rows = list.map(r => '<tr><th>' + esc(r[0]) + '</th><td>' + lines(r[1]) + '</td></tr>').join('');
   const cdc = (t.cong_dung_chat || []).length ? '<ul>' + t.cong_dung_chat.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' : '';
-  const full = t.inci && t.inci.length ? '<div class="ti-in"><b>Danh sách đầy đủ (' + t.inci.length + ' chất, theo thứ tự trên trang)</b><div>' + t.inci.map(esc).join(', ') + '.</div></div>'
-    : '<div class="ti-in"><b>Hoạt chất</b><div>' + esc(t.hoat_chat || '') + '</div>' + (t.cac_chat ? '<b>Các chất còn lại</b><div>' + esc(t.cac_chat) + '</div>' : '') + '</div>';
   return '<div class="thr ti"><div class="ti-h">' + esc(x.ten) + '</div><table class="ti-t"><tbody>' + rows + '</tbody></table>' +
-    '<details class="ti-d"><summary>Thành phần</summary>' + (cdc ? '<div class="ti-in"><b>Công dụng từng chất</b>' + cdc + '</div>' : '') + full + '</details>' +
+    '<div class="ti-s">Tài liệu chỉ ghi hàm lượng ở dòng "Hàm lượng"; hàm lượng từng chất còn lại không được công bố.</div>' +
+    (cdc ? '<details class="ti-d"><summary>Công dụng từng chất</summary><div class="ti-in">' + cdc + '</div></details>' : '') +
     (x.ghi_chu ? '<div class="ti-n">' + esc(x.ghi_chu) + '</div>' : '') + '<div class="ti-s">Nguồn: ' + esc(x.nguon || '') + '</div></div>';
 }
 
