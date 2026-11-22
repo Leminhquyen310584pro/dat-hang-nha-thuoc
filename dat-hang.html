@@ -635,6 +635,21 @@ details.px-c,details.px-r,details.px-more{border:0}
 .px-more{margin-top:4px}
 .px-more>.thr.px{margin-top:8px}
 
+/* ===== Ý 3 (22/11/2026): CTKM quý trong ngăn: một khối kết quả khi giá các mức bằng nhau, dòng so sánh khi khác nhau ===== */
+.thr.px-q{display:flex;flex-direction:column;gap:8px}
+.px-res{background:var(--quy-soft);border-radius:12px;padding:10px 12px}
+.px-res b{display:block;font-size:14px;color:var(--quy-ink);line-height:1.35}
+.px-res span{font-size:12.5px;color:var(--quy-ink)}
+.px-set{flex:1 1 140px;min-height:44px;border-radius:12px;font-weight:800;font-size:13.5px;border:0;background:var(--primary);color:var(--primary-ink);cursor:pointer;font-family:inherit}
+.px-rows{display:flex;flex-direction:column;gap:6px}
+.thrbtn.chip.rowb{flex-direction:row;justify-content:space-between;align-items:center;text-align:left;min-height:52px;padding:8px 12px;gap:10px;border-radius:12px}
+.rowb .rb-l,.rowb .rb-r{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rowb .rb-r{text-align:right;flex:none}
+.rowb b{font-size:13.5px}
+.rowb small{font-size:12px;color:var(--muted);font-weight:600}
+.rowb small.rb-g{color:var(--quy-ink)}
+.rowb.on{border-color:var(--primary);background:var(--primary-soft)}
+
 </style>
 </head>
 <body>
@@ -1358,9 +1373,29 @@ function thrLine(d0, n) {
   const useChips = need > 1 && (kind === 'money' || (d.n > 0 && d.o));
   if (useChips) {
     const items = [1, 2, 3].map(k => {
-      const q = qk(k), r = calcQuy(d, q);
-      return { qty: q, sub: k + ' suất', price: !r.skip && !r.miss && r.P != null ? 'giá cuối ' + fmt(r.P) : '' };
+      const q = qk(k), r = calcQuy(d, q), P = !r.skip && !r.miss && r.P != null ? r.P : null;
+      return { qty: q, k, P, sub: k + ' suất', price: P != null ? 'giá cuối ' + fmt(P) : '' };
     });
+    /* Ý 3 (người dùng chọn 19/11/2026, làm 22/11/2026): bỏ ô lặp. Giá các mức BẰNG nhau → một khối kết quả + 2 nút; KHÁC nhau → các dòng so sánh (số chai · suất · giá · rẻ hơn bao nhiêu); thiếu giá quà → giữ ô như cũ */
+    const allP = items.every(i => i.P != null), same = allP && items.every(i => Math.abs(i.P - items[0].P) < 0.5);
+    if (allP) {
+      const unit = esc(pUnit(d));
+      const giftK = k => d.n > 0 && d.o ? 'tặng ' + k * d.n + ' ' + esc(giftName(d.o)) : k + ' suất';
+      const head = kind === 'money' ? 'Mỗi ' + fmt(d.e) + ' (' + need + ' ' + u + ') ' + giftK(1) : 'Mỗi ' + need + ' ' + u + ' ' + giftK(1);
+      const stt = reached ? '<div class="thr-ok">✓ Đang đặt ' + n + ' ' + u + ' · đủ ngưỡng</div>' : '';
+      if (same) {
+        return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>Giá cuối ' + fmt(items[0].P) + '/' + unit + ' ở mọi mức · mua gấp đôi thì tặng gấp đôi' + noteGia + '</span></div>' + stt +
+          '<div class="px-ga">' + (n !== need ? '<button type="button" class="thrbtn px-set" data-set="' + d.w + '" data-n="' + need + '" data-prog="q">Đặt ' + need + ' ' + u + '</button>' : '') +
+          '<button type="button" class="px-add" data-padd="' + d.w + '" data-n="' + need + '">+ ' + need + ' ' + u + '</button></div>' + gb + '</div>';
+      }
+      const base = items[0].P;
+      const rows = items.map(it => {
+        const cur = n === it.qty, diff = base - it.P;
+        return '<button type="button" class="thrbtn chip rowb' + (cur ? ' on' : '') + '" data-set="' + d.w + '" data-n="' + it.qty + '" data-prog="q"><span class="rb-l"><b>' + it.qty + ' ' + u + ' · ' + it.k + ' suất</b><small>' + giftK(it.k) + '</small></span>' +
+          '<span class="rb-r"><b>' + fmt(it.P) + '/' + unit + '</b><small class="' + (diff > 0.5 ? 'rb-g' : '') + '">' + (it.k === 1 ? 'mức thấp nhất' : diff > 0.5 ? 'rẻ hơn ' + fmt(diff) + '/' + unit : diff < -0.5 ? 'đắt hơn ' + fmt(-diff) + '/' + unit : 'bằng mức thấp nhất') + '</small></span></button>';
+      }).join('');
+      return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>Mua nhiều thì giá mỗi ' + unit + ' thay đổi, chọn mức' + noteGia + ':</span></div>' + stt + '<div class="px-rows">' + rows + '</div>' + gb + '</div>';
+    }
     return '<div class="thr' + (reached ? ' ok' : '') + '">' + text + chipsHtml(d, items, 'q') + gb + '</div>';
   }
   return '<div class="thr' + (reached ? ' ok' : '') + '">' + text + (n !== need ? setBtn(d, need, 'q') : '') + gb + '</div>';
