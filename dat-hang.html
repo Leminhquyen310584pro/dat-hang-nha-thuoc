@@ -697,6 +697,14 @@ details.px-c,details.px-r,details.px-more{border:0}
 .ti-s{font-size:11.5px;color:var(--muted)}
 .ti-t li.nn{list-style:none;margin-left:-16px}
 
+/* PACK đặt được trong App (23/11/2026): thẻ pack có ô chọn số pack */
+.pack-row.pk{flex-wrap:wrap;align-items:flex-start}
+.pack-row.pk .pk-t{flex:1 1 220px;min-width:0}
+.pack-row.pk .pk-p{margin-top:6px;font-size:13px;color:var(--ink);line-height:1.45}
+.pack-row.pk .pk-n{margin-top:4px;font-size:12px;color:var(--muted)}
+.pack-row.pk .stepper{flex:0 0 auto;background:var(--surface)}
+.pack-row.pk.on{box-shadow:inset 0 0 0 2px var(--primary)}
+
 </style>
 </head>
 <body>
@@ -1528,14 +1536,60 @@ function brandTree() {
 // Nhãn đang mở (bấm để gập/mở). Khi đang tìm hoặc lọc thì các nhãn có kết quả tự mở.
 const openBrands = new Set();
 
-// CTKM đặc biệt dạng pack (vd PACK REMOS IB Q4, PACK LIPICE): một dòng, giá xem ở trang Tính giá
+/* PACK đặt được trong App (người dùng bảo 23/11/2026: "sao Pack lipice vào app đặt không có"): Pack Lipice và Pack Remos IB.
+   Mỗi pack là một dòng riêng trong Đơn hàng (số pack 1 đến 6, tối đa 6 pack/nhà thuốc), tính đúng như trang Tính giá:
+   Pack Lipice: khách trả = tiền hàng × (1 − CK 10%) × (1 − CK hóa đơn 1%), giá cuối từng loại thỏi lấy từ Excel (thỏi tặng tính giá tặng chéo);
+   Pack Remos IB: khách trả = tiền hàng × (1 − 1%), quà 2 Remos IR Spray 70ml trừ theo giá tặng chéo. Pack không cộng CTKM quý của hàng lẻ. */
+const PACK_CFG = {
+  'PACK LIPICE': { name: 'Pack Lipice (Pack Lipcare 2026)', parts: [{ w: 135, n: 2, l: 'Lipice dâu (Strawberry)' }, { w: 142, n: 1, l: 'Sheer Color Ardent' }, { w: 143, n: 2, l: 'Sheer Color Q Thỏ Bảy Màu' }], foc: 1 },
+  'PACK REMOS IB Q4': { name: 'Pack Remos IB', parts: [{ w: 18, n: 5, l: 'Remos IB' }], foc: 0 }
+};
+const PACK_MAX = 6, PACK_KEY = 'dat-hang-pack-v1';
+const packOf = {};   // tên chương trình pack -> số pack
+function packCalc(title, n) {
+  const cfg = PACK_CFG[title]; if (!cfg || !(n > 0)) return null;
+  const progs = PROGS.filter(p => p.title === title && daysLeft(p.e) >= 0); if (!progs.length) return null;
+  const p0 = progs[0];
+  const parts = cfg.parts.map(x => { const d = DW[x.w]; return d ? { n: x.n, d, l: x.l || shortName(d) } : null; });
+  if (parts.some(x => !x)) return null;
+  const G = parts[0].d.gp || 0, gross1 = parts.reduce((a, x) => a + x.n * x.d.c, 0), mua = parts.reduce((a, x) => a + x.n, 0), u = parts[0].d.u || 'sp';
+  let pay1, per, giftTxt, miss = false;
+  if (p0.fixed != null) {
+    pay1 = gross1 * (1 - (p0.ck || 0)) * (1 - G);
+    per = parts.map(x => { const pp = progs.find(p => p.w === x.d.w); return { l: x.l, P: pp ? pp.fixed : null, u: x.d.u || 'sp' }; });
+    giftTxt = cfg.foc + ' ' + u + ' tặng';
+  } else {
+    const cq = p0.cq || 0, cp = p0.cp; pay1 = gross1 * (1 - G); miss = cq > 0 && !(cp > 0);
+    per = [{ l: parts[0].l, P: miss ? null : (pay1 - cq * cp) / mua, u }];
+    giftTxt = 'tặng ' + cq + ' Remos IR Spray 70ml';
+  }
+  pay1 = Math.round(pay1);   /* tiền 1 pack làm tròn trước rồi mới nhân số pack (giống trang Tính giá: 3 pack = 3 × 347.223 = 1.041.669đ) */
+  return { title, cfg, n, gross: n * gross1, pay: n * pay1, pay1, gross1, mua, per, giftTxt, miss, u, p: p0, mix: cfg.foc > 0 };
+}
+function packPerTxt(r) { return r.per.map(x => (r.per.length > 1 ? x.l + ' ' : '') + (x.P != null ? fmt(x.P) + '/' + x.u : 'thiếu giá quà')).join(' · '); }
+function packDesc(r) { return r.n + ' pack · ' + r.n * r.mua + ' ' + r.u + ' mua + ' + (r.mix ? r.n * r.cfg.foc + ' ' + r.u + ' tặng' : r.giftTxt.replace(/^tặng (\d+)/, (m, q) => 'tặng ' + r.n * q)); }
+function setPack(title, n) {
+  n = Math.max(0, Math.floor(+n || 0));
+  if (n > PACK_MAX) { n = PACK_MAX; flash('Tối đa ' + PACK_MAX + ' pack mỗi nhà thuốc'); }
+  if (n === 0) delete packOf[title]; else packOf[title] = n;
+  saveCart(); renderCart(); renderCatalog(); msUpdate();
+}
 function packRows(members) {
   const ws = new Set(members.map(d => d.w));
   const seen = new Set();
-  return PROGS.filter(p => /^pack/i.test(String(p.title || '')) && ws.has(p.w)).filter(p => {
+  return PROGS.filter(p => /^pack/i.test(String(p.title || '')) && ws.has(p.w) && daysLeft(p.e) >= 0).filter(p => {
     const k = p.title; if (seen.has(k)) return false; seen.add(k); return true;
-  }).map(p => '<div class="pack-row"><div><b>' + esc(String(p.title).replace(/\s*Q4.*$/i, '').replace(/^pack/i, 'Pack')) + '</b>' +
-    '<div class="spec">' + esc(p.full || p.cond || '') + '</div></div><span class="tag s">Giá xem ở trang Tính giá</span></div>').join('');
+  }).map(p => {
+    const nm = esc(String(p.title).replace(/\s*Q4.*$/i, '').replace(/^pack/i, 'Pack'));
+    if (!PACK_CFG[p.title]) return '<div class="pack-row"><div><b>' + nm + '</b><div class="spec">' + esc(p.full || p.cond || '') + '</div></div><span class="tag s">Giá xem ở trang Tính giá</span></div>';
+    const n = packOf[p.title] || 0, r = packCalc(p.title, Math.max(n, 1)), t = esc(p.title);
+    return '<div class="pack-row pk' + (n > 0 ? ' on' : '') + '" data-pkt="' + t + '"><div class="pk-t"><b>' + esc(PACK_CFG[p.title].name) + '</b>' +
+      '<div class="spec">' + esc(p.full || p.cond || '') + '</div>' +
+      (r ? '<div class="pk-p">1 pack = <b>' + fmt(r.pay1) + '</b> · ' + r.mua + ' ' + esc(r.u) + ' mua + ' + esc(r.giftTxt) + '<br>Giá cuối: ' + esc(packPerTxt(r)) + (r.miss ? ' (thiếu giá quà Remos IR Spray 70ml)' : '') + '</div>' : '') +
+      '<div class="pk-n">Tối đa ' + PACK_MAX + ' pack mỗi nhà thuốc · không cộng CTKM quý của hàng lẻ</div></div>' +
+      '<div class="stepper" role="group" aria-label="Số pack"><button type="button" data-pkd="' + t + '|-1" aria-label="Giảm">−</button>' +
+      '<input class="pk-in" type="number" inputmode="numeric" min="0" max="' + PACK_MAX + '" step="1" value="' + n + '" data-pkt="' + t + '" aria-label="Số pack"><button type="button" data-pkd="' + t + '|1" aria-label="Tăng">+</button></div></div>';
+  }).join('');
 }
 
 // Thanh tiến độ ngưỡng của một nhãn (theo cột E). Chỉ hiện khi đơn đã có sản phẩm thuộc ngưỡng đó.
@@ -2124,6 +2178,15 @@ function renderCart() {
     addLine(d, '<div class="cline"><div class="n1">' + esc(shortName(d)) + '</div><div class="amt">' + fmt(r.pay) + '</div>' +
       '<div class="n2">' + n + ' ' + esc(d.u || 'sp') + esc(varSuffix(d)) + (r.P != null ? ' · ' + fmt(r.P) + '/' + esc(pUnit(d)) : '') + '</div>' + rm + g + '</div>');
   });
+  Object.keys(packOf).forEach(t => {
+    const r = packCalc(t, packOf[t]); if (!r) return;
+    cnt++; gross += r.gross; pay += r.pay; if (r.miss) anyMiss = true;
+    const k = brandLabel(DW[r.cfg.parts[0].w]); if (!byBrand.has(k)) byBrand.set(k, []);
+    byBrand.get(k).push('<div class="swr"><div class="swa"><button type="button" class="sw-x" data-pkrm="' + esc(t) + '">Xóa</button></div><div class="cline"><div class="n1">' + esc(r.cfg.name) + ' <i class="mxtag d">Pack</i></div><div class="amt">' + fmt(r.pay) + '</div>' +
+      '<div class="n2">' + esc(packDesc(r)) + ' · 1 pack = ' + fmt(r.pay1) + '</div>' +
+      '<button type="button" class="rm" data-pkrm="' + esc(t) + '" aria-label="Xóa ' + esc(r.cfg.name) + '">×</button>' +
+      '<div class="gift' + (r.miss ? ' bad' : '') + '">Giá cuối: ' + esc(packPerTxt(r)) + '</div></div></div>');
+  });
   byBrand.forEach((arr, k) => { lines.push('<div class="cl-brand">' + esc(k) + ' <span>' + arr.length + ' sản phẩm</span></div>'); arr.forEach(x => lines.push(x)); });
   if (lines.length) {
     $('cartLines').innerHTML = lines.join('');
@@ -2184,6 +2247,7 @@ function copyText() {
     if (r.skip) { single.push(n + ' ' + (d.u || 'sp') + ' ' + shortName(d) + ' · xem giá ở trang Tính giá'); return; }
     single.push(n + ' ' + (d.u || 'sp') + ' ' + shortName(d) + varSuffix(d) + (r.N > 0 ? ' · tặng ' + r.N + ' ' + r.giftName : '') + (progOf[d.w] && progOf[d.w] !== 'q' ? ' · theo CTKM đặc biệt ' + progOf[d.w] + ' (giá xem ở Tính giá)' : '') + ' · ' + fmt(r.pay));
   });
+  Object.keys(packOf).forEach(t => { const r = packCalc(t, packOf[t]); if (!r) return; single.push(packDesc(r).replace(/^(\d+) pack/, '$1 ' + r.cfg.name.replace(/\s*\(.*$/, '')) + ' · ' + fmt(r.pay)); single.push('Giá cuối: ' + packPerTxt(r)); });
   if (single.length) { if (MC.groups.length) { out.push(''); out.push('Đơn lẻ'); } single.forEach(x => out.push(x)); }
   if (!(MC.groups.length === 1 && single.length === 0)) { out.push(''); out.push('Tổng thanh toán ' + $('sPay').textContent); }   // một nhóm duy nhất đã có dòng Tổng thanh toán riêng
   { const pg = pinfoLinesO(); if (pg.length) { const ti = out.map(x => /^Tổng thanh toán/.test(x)).lastIndexOf(true); if (ti < 0) out.push('', ...pg); else out.splice(ti, 0, ...pg); } }
@@ -2191,7 +2255,7 @@ function copyText() {
 }
 
 // Lưu đơn trên máy (không bắt buộc: nếu trình duyệt chặn thì đơn chỉ tồn tại trong phiên này)
-function saveCart() { try { localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(GK_KEY, JSON.stringify(gkOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick })); } catch (e) { /* bỏ qua */ } }
+function saveCart() { try { localStorage.setItem(PACK_KEY, JSON.stringify(packOf)); localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(GK_KEY, JSON.stringify(gkOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick })); } catch (e) { /* bỏ qua */ } }
 function loadCart() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -2199,6 +2263,8 @@ function loadCart() {
       const n = Math.floor(+s[k]);
       if (n > 0 && DATA.some(d => d.w === +k)) qtyOf[k] = n;
     });
+    const pks = JSON.parse(localStorage.getItem(PACK_KEY) || '{}');
+    Object.keys(pks).forEach(k => { const n = Math.floor(+pks[k]); if (PACK_CFG[k] && n > 0) packOf[k] = Math.min(n, PACK_MAX); });
     const mx = JSON.parse(localStorage.getItem(MIXAPP_KEY) || '{}');
     (mx.a || []).forEach(id => { if (typeof id === 'string' && !mixApplied.includes(id)) mixApplied.push(id); });
     Object.keys(mx.p || {}).forEach(k => { if (Number.isInteger(mx.p[k])) mixPick[k] = mx.p[k]; });
@@ -2254,6 +2320,8 @@ document.addEventListener('click', e => {
     det.hidden = !det.hidden;
     return;
   }
+  if (b.dataset.pkd !== undefined) { const [t, dl] = b.dataset.pkd.split('|'); setPack(t, (packOf[t] || 0) + (+dl)); return; }
+  if (b.dataset.pkrm !== undefined) { setPack(b.dataset.pkrm, 0); return; }
   if (b.dataset.rm !== undefined) { setQty(+b.dataset.rm, 0); return; }
   if (b.dataset.add !== undefined) { setQty(+b.dataset.add, (qtyOf[+b.dataset.add] || 0) + 1); return; }
   if (b.dataset.bi !== undefined) {   // bấm nhãn: gập/mở danh sách sản phẩm và pack
@@ -2313,11 +2381,11 @@ document.addEventListener('click', e => {
     const el = $('b' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
   }
   if (b.id === 'clearAll') {   // làm lại từ đầu: bỏ mọi số lượng, chương trình và thẻ đang mở, về đầu trang
-    Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
+    Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
     saveCart(); renderCatalog(); renderCart(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
   }
   if (b.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-  if (b.id === 'clear') { Object.keys(qtyOf).forEach(k => delete qtyOf[k]); saveCart(); renderCatalog(); renderCart(); return; }
+  if (b.id === 'clear') { Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); saveCart(); renderCatalog(); renderCart(); return; }
   if (b.dataset.st) {   // thanh dưới 3 bước
     closeOrderSheet(); closeMixSheet();
     if (b.dataset.st === 'pick') { openSheet(false); openQty(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -2382,6 +2450,7 @@ document.addEventListener('click', e => {
   }
 });
 document.addEventListener('change', e => {
+  if (e.target.matches('.pk-in')) { setPack(e.target.dataset.pkt, e.target.value); return; }
   if (e.target.matches('#msList input')) { setQty(+e.target.closest('.msrow').dataset.w, e.target.value); return; }
   if (e.target.matches('.vrow input')) { const row = e.target.closest('.vrow'); setVar(+row.dataset.vw, row.dataset.vid, e.target.value); return; }
   if (e.target.matches('#qtyList input')) { setQty(+e.target.closest('.qs-row').dataset.w, e.target.value); return; }
@@ -2459,6 +2528,11 @@ function renderQty() {
     rows.push('<div class="qs-row" data-w="' + d.w + '"><div class="qs-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + (!r.skip && r.P != null ? ' · giá cuối ' + fmt(r.P) : '') + '</span>' + g + (fixed ? '<span>Sản phẩm nhiều mã: đổi từng mã ở thẻ sản phẩm</span>' : '') + '</div>' +
       '<div class="qs-r"><div class="stepper" role="group"><button type="button" data-msd="' + d.w + '" aria-label="Giảm"' + (fixed ? ' disabled' : '') + '>−</button><input type="number" inputmode="numeric" min="0" step="1" value="' + n + '" aria-label="Số lượng ' + esc(shortName(d)) + '"' + (fixed ? ' readonly' : '') + '><button type="button" data-msi="' + d.w + '" aria-label="Tăng"' + (fixed ? ' disabled' : '') + '>+</button></div>' +
       '<b class="qs-p">' + (r.skip ? '—' : fmt(r.pay)) + '</b></div></div>');
+  });
+  Object.keys(packOf).forEach(t => {
+    const r = packCalc(t, packOf[t]); if (!r) return; const te = esc(t);
+    rows.push('<div class="qs-row" data-pkt="' + te + '"><div class="qs-t"><b>' + esc(r.cfg.name) + '</b><span>1 pack = ' + fmt(r.pay1) + ' · ' + esc(packDesc(r)) + '</span><div class="qs-g ok">Giá cuối: ' + esc(packPerTxt(r)) + '</div></div>' +
+      '<div class="qs-r"><div class="stepper" role="group"><button type="button" data-pkd="' + te + '|-1" aria-label="Giảm">−</button><input class="pk-in" type="number" inputmode="numeric" min="0" max="' + PACK_MAX + '" step="1" value="' + r.n + '" data-pkt="' + te + '" aria-label="Số pack"><button type="button" data-pkd="' + te + '|1" aria-label="Tăng">+</button></div><b class="qs-p">' + fmt(r.pay) + '</b></div></div>');
   });
   box.innerHTML = rows.length ? rows.join('') : '<div class="cart-empty"><p>Chưa có sản phẩm. Quay lại bước 1 để chọn.</p></div>';
   $('qsPay').textContent = $('sPay').textContent;
