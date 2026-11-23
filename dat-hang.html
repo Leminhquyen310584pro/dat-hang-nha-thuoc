@@ -735,6 +735,11 @@ details.px-c,details.px-r,details.px-more{border:0}
 
 .thr.ti.pi{align-items:stretch;justify-content:flex-start;flex-wrap:nowrap;padding:6px 2px 10px;margin:0;font-size:15px;color:var(--ink)}
 .pi>*{align-self:stretch}
+/* Mẫu 5 (người dùng chọn 23/11/2026): công dụng từng chất = danh sách gọn "Tên chất – công dụng" */
+.pi-ing{display:block}
+.pi-i{background:none;border:0;border-radius:0;padding:5px 0;font-size:14.5px;line-height:1.45}
+.pi-i b{display:inline;font-size:inherit;color:#3B4BD8}
+.pi-i span{font-size:inherit;color:#5B6485}
 
 </style>
 </head>
@@ -1185,7 +1190,7 @@ function infoBlock(x) {
   const hl = rowOf('Hàm lượng');
   const dang = (x.rows || []).find(r => r[0] === 'Phân loại' && r[1] !== 'Mỹ phẩm');
   const chips = (x.loai ? '<span class="pi-chip a">' + esc(x.loai) + '</span>' : '') + (dang ? '<span class="pi-chip b">' + esc(dang[1]) + '</span>' : '');
-  const cdc = (t.cong_dung_chat || []).map(l => { const i = l.indexOf(': '); return i > 0 && i < 90 ? '<div class="pi-i"><b>' + esc(l.slice(0, i)) + '</b><span>' + esc(l.slice(i + 2)) + '</span></div>' : '<div class="pi-i"><span>' + esc(l) + '</span></div>'; }).join('');
+  const cdc = (t.cong_dung_chat || []).map(l => { const i = l.indexOf(': '); return i > 0 && i < 90 ? '<div class="pi-i"><b>' + esc(l.slice(0, i)) + '</b> <span>– ' + esc(l.slice(i + 2)) + '</span></div>' : '<div class="pi-i"><span>' + esc(l) + '</span></div>'; }).join('');
   const code = rowOf('Mã sản phẩm'), luu = rowOf('Lưu ý'), chd = rowOf('Chỉ định'), bq = rowOf('Bảo quản');
   return '<div class="thr ti pi"><div class="pi-top"><div><div class="pi-name">' + esc(x.ten) + '</div><div class="pi-chips">' + chips + '</div></div></div>' +
     '<div class="pi-hl"><b>Hàm lượng</b><span>' + (hl ? esc(arr(hl).join(' · ')) : 'Không công bố hàm lượng') + '</span></div>' +
