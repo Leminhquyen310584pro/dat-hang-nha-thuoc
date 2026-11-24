@@ -1199,7 +1199,7 @@ function card(d) {
     cfBlock(d, n) +
     /* Ý 1 (người dùng chọn 19/11/2026): mỗi thẻ chỉ một dòng nhỏ "● Quý · ● 2 đặc biệt ›"; chi tiết khuyến mãi nằm trong ngăn trượt từ dưới lên (cùng nội dung cũ, chỉ đổi cách hiển thị) */
     (badges.length ? '<button type="button" class="pline" data-popen="' + d.w + '"' + (popen.has(d.w) ? ' aria-expanded="true"' : '') + '>' +
-      (kindQ ? '<span class="pl q">Quý</span>' : (d.h > 0 ? '<span class="pl q">CK quý</span>' : '')) + (nSp ? '<span class="pl s">' + (nSp > 1 ? nSp + ' ' : '') + 'đặc biệt</span>' : '') + (info ? '<span class="pl i">Thông tin</span>' : '') + '<i aria-hidden="true">›</i></button>' : '') +
+      (kindQ ? '<span class="pl q">Quý</span>' : (d.h > 0 ? '<span class="pl q">CK quý</span>' : '')) + (nSp ? '<span class="pl s">' + (nSp > 1 ? nSp + ' ' : '') + 'đặc biệt</span>' : '') + (info ? '<span class="pl i">Thông tin sản phẩm</span>' : '') + '<i aria-hidden="true">›</i></button>' : '') +
     '<div class="psheet"><div class="ps-card"><div class="ps-h"><div class="ps-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + '</span></div><button type="button" class="ps-x" data-pclose="' + d.w + '" aria-label="Đóng">✕</button></div>' +
     (badges.length ? '<div class="ctabs' + (multi ? ' mt' : '') + '">' + badges.join('') + '</div>' : '') +
     (showQ ? thrLine(d, n) : '') + (showS ? specialLines(d) : '') + (showI ? infoBlock(info) : '') +
