@@ -785,6 +785,11 @@ body{font-feature-settings:"tnum" 0}
 .ctabs.mt .tagbtn.tg.i::before{display:none}
 .tagbtn .tc{margin-left:5px;font-size:10.5px;font-weight:600;background:var(--primary-soft);color:#9A3F18;border-radius:999px;padding:1px 6px}
 .tagbtn.tg.on .tc{background:rgba(255,255,255,.22);color:#fff}
+.ctabs.mt .tagbtn.tg{flex:1 1 0;padding:8px 3px;font-size:12px}
+.ctabs.mt .tagbtn.tg:nth-child(1){flex-grow:.8}
+.ctabs.mt .tagbtn.tg:nth-child(2){flex-grow:1.1}
+.ctabs.mt .tagbtn.tg:nth-child(3){flex-grow:1.8}
+.ctabs.mt .tagbtn.tg .tc{margin-left:4px;padding:1px 5px}
 
 </style>
 </head>
@@ -1176,7 +1181,7 @@ function card(d) {
   if (kindQ) badges.push(mk('q', 'q', multi ? 'Quý' : 'CTKM quý'));
   else if (d.h > 0) badges.push('<span class="tagbtn q">CK quý</span>');
   if (nSp) badges.push(mk('s', 's', multi ? 'Đặc biệt' + (nSp > 1 ? '<span class="tc">' + nSp + '</span>' : '') : 'CTKM đặc biệt'));
-  if (info) badges.push(mk('i', 'i', multi ? 'Thông tin' : 'Thông tin sản phẩm'));
+  if (info) badges.push(mk('i', 'i', 'Thông tin sản phẩm'));
   let detail = '';
   if (hasQ) detail += '<div>CTKM quý: ' + esc(quyText(d)) + '</div>';
   else if (d.h > 0) detail += '<div>CK quý ' + Math.round(d.h * 100) + '%</div>';
