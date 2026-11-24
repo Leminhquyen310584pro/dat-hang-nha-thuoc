@@ -1220,7 +1220,7 @@ function infoBlock(x) {
     sec('cd', '✨', 'Công dụng', plain(rowOf('Công dụng'))) +
     sec('dt', '👥', 'Đối tượng', infer('Đối tượng', rowOf('Đối tượng'))) +
     sec('hd', '📋', 'Cách dùng', usage()) +
-    sec('ch', '🔬', 'Công dụng từng chất', cdc ? '<div class="pi-b pi-ing">' + cdc + (t.nguon_cong_dung ? '<div class="pi-sl">' + esc(t.nguon_cong_dung) + '</div>' : '') + '</div>' : na) +
+    sec('ch', '🔬', 'Thành phần và tác dụng', cdc ? '<div class="pi-b pi-ing">' + cdc + (t.nguon_cong_dung ? '<div class="pi-sl">' + esc(t.nguon_cong_dung) + '</div>' : '') + '</div>' : na) +
     (chd ? sec('cdn', '🎯', 'Chỉ định', plain(chd)) : '') + (luu ? sec('lu', '⚠️', 'Lưu ý', plain(luu)) : '') + (bq ? sec('bq', '📦', 'Bảo quản', plain(bq)) : '') + (code ? sec('mc', '🏷️', 'Mã sản phẩm', plain(code)) : '') +
     (x.ghi_chu ? '<div class="pi-n">' + esc(x.ghi_chu) + '</div>' : '') + '<div class="pi-n">Nguồn: ' + esc(x.nguon || '') + '</div></div>';
 }
