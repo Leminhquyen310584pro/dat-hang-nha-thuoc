@@ -791,6 +791,35 @@ body{font-feature-settings:"tnum" 0}
 .ctabs.mt .tagbtn.tg:nth-child(3){flex-grow:1.8}
 .ctabs.mt .tagbtn.tg .tc{margin-left:4px;padding:1px 5px}
 
+/* ===== Ý 2 accordion trong ngăn khuyến mãi (24/11/2026): mỗi luật/chương trình một thẻ, chỉ thẻ đang chọn mở đầy đủ ===== */
+.acc{border:1px solid #E7D7CB;border-radius:16px;padding:12px;margin:0 0 8px;background:#fff}
+.acc.open.q{border:2px solid var(--quy);background:#F8FDFA}
+.acc.open.d{border:2px solid var(--dbt);background:#FFFAFB}
+.acc-h{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:0;font:inherit;text-align:left;cursor:pointer;color:var(--ink);min-height:30px}
+.acc-t{flex:1;font-size:14px;font-weight:700;line-height:1.3}
+.acc-c{font-style:normal;font-size:11px;font-weight:700;background:var(--dbt-soft);color:var(--dbt-ink);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.acc-st{font-style:normal;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;background:#F1EEF4;color:#6B7089}
+.acc.open.q .acc-st{background:var(--quy-soft);color:var(--quy-ink)}
+.acc.open.d .acc-st{background:var(--dbt-soft);color:var(--dbt-ink)}
+.acc-s{font-size:12px;color:var(--muted);margin-top:3px}
+.acc.open .acc-s{display:none}
+.acc:not(.open) .acc-b{display:none}
+.acc-b{margin-top:8px}
+.acc-b>.thr,.acc-b>.thr.px,.acc-b>.px-g{border:0;background:none;box-shadow:none;padding:0;margin:0}
+.acc-b>.thr.px{border-left:0}
+.acc-b .px-h b,.acc-b .px-h .pb.best{display:none}
+.acc-b .px-h{margin:0}
+.acc-b .px-g{margin-top:0}
+.acc-plain{margin:0}
+.orig{background:#FAF6F0;border:1px dashed #D9C9AE;border-radius:12px;padding:9px 11px;font-size:12px;margin-top:10px;color:var(--ink)}
+.orig>b{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9A7B3F;margin-bottom:3px}
+.orig p{margin:0 0 4px}
+.orig .thr-c{font-size:12px}
+.acc-b .px-h{text-align:left;font-size:12px;color:var(--muted)}
+.acc-b .px-ga button{font-size:13px;padding-left:6px;padding-right:6px}
+.acc-pr{background:var(--dbt-soft);border-radius:12px;padding:9px 12px;font-size:13px;margin-bottom:8px;color:var(--dbt-ink)}
+.acc-pr b{font-size:15px}
+
 </style>
 </head>
 <body>
@@ -902,6 +931,7 @@ const STORE_KEY = 'dat-hang-don-v1';
 
 const qtyOf = {};              // mã sản phẩm (w) -> số lượng
 const popen = new Set();       // sản phẩm đang mở ngăn khuyến mãi (Ý 1, 19/11/2026)
+const accSel = {};             // 'mã|tab' -> thẻ đang mở trong ngăn (Ý 2 accordion, 24/11/2026); undefined = thẻ đầu tiên, '' = gập hết
 const tabOf = {};              // mã sản phẩm -> thẻ đang mở ('q' = CTKM quý, 's' = CTKM đặc biệt, '' = gập); chỉ dùng khi sản phẩm có cả hai
 const progOf = {};             // mã sản phẩm -> chương trình đơn đang đặt theo ('q' hoặc tên CTKM đặc biệt)
 const PROG_KEY = 'dat-hang-chuongtrinh-v1';
@@ -1187,7 +1217,7 @@ function card(d) {
   else if (d.h > 0) detail += '<div>CK quý ' + Math.round(d.h * 100) + '%</div>';
   if (nSp) detail += '<div>CTKM đặc biệt: ' + esc(sp.map(p => p.title).concat(pinfoOf(d.w).map(x => x.prog)).join(' · ')) + ' (giá xem ở trang Tính giá)</div>';
   // điều kiện nguyên văn của công ty (cột D bảng giá), để xem đủ các luật kể cả khi trang chỉ tính một luật
-  const rules = String(d.d || '').split(/\n+/).map(s => s.replace(/^\s*[*•]\s*/, '').replace(/\s*Ò\s*/g, ' => ').trim()).filter(Boolean);
+  const rules = rulesOf(d);
   if (rules.length) detail += '<div class="rules"><b>Điều kiện của công ty</b>' + rules.map(r => '<div>• ' + esc(r) + '</div>').join('') + '</div>';
   if (!detail) detail = '<div>Không có khuyến mãi</div>';
   const spec = d.q && d.q !== '—' ? esc(d.q) : '';   // quy cách (chai 400ml, tuýp 50g…); không có thì bỏ dòng, giá đã nằm bên phải
@@ -1487,6 +1517,21 @@ const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/
    Chương trình tính chung cả NHÓM (mũ 30 chai, túi Tote, Lipcare, Acnes+Oxy…): tiến độ lấy từ CẢ ĐƠN HÀNG (người dùng chốt: tính cả đơn; không có ô "đã mua trước đó", anh tự nhớ) kèm nút "+ Thêm N chai" và "Trộn sản phẩm khác ›".
    Chương trình có giá: rẻ nhất xếp trên cùng có dấu "Rẻ nhất", các chương trình còn lại gom "+N chương trình nữa". */
 function subFor(d, key, cond) { return allSubs().find(x => x.prog === key && x.members.has(d.w) && x.members.size > 1 && (cond === undefined || x.cond === cond)) || null; }
+
+/* ---- Ý 2 accordion (người dùng chọn 24/11/2026): mỗi luật / chương trình là một thẻ; chỉ thẻ đang chọn mở đầy đủ, thẻ còn lại thu thành một dòng tóm tắt. Điều kiện nguyên văn của công ty luôn hiện ở cuối thẻ đang mở. */
+function rulesOf(d) { return String(d.d || '').split(/\n+/).map(s => s.replace(/^\s*[*•]\s*/, '').replace(/\s*Ò\s*/g, ' => ').trim()).filter(Boolean); }
+const isGrpRule = r => /bất kỳ|kết hợp|các sản phẩm|dòng /i.test(r);
+const origBox = (lines, extra) => lines.length || extra ? '<div class="orig"><b>Điều kiện của công ty</b>' + lines.map(r => '<p>' + esc(r.replace(/\s*=\s*=>\s*|\s*=>\s*/g, ' ⇒ ')) + '</p>').join('') + (extra || '') + '</div>' : '';
+function accWrap(d, tab, id, kind, title, chip, summary, body, firstId) {
+  const k = d.w + '|' + tab, sel = accSel[k] === undefined ? firstId : accSel[k], open = sel === id;
+  return '<div class="acc ' + kind + (open ? ' open' : '') + '" data-acc-id="' + id + '"><button type="button" class="acc-h" data-acc="' + d.w + '|' + tab + '|' + id + '" aria-expanded="' + open + '"><span class="acc-t">' + title + '</span>' +
+    (chip ? '<i class="acc-c">' + chip + '</i>' : '') + '<i class="acc-st">' + (open ? 'Đang xem' : 'Mở ⌄') + '</i></button>' +
+    '<div class="acc-s">' + summary + '</div><div class="acc-b">' + body + '</div></div>';
+}
+function groupSummary(d, sb) {
+  const st = subStat(sb);
+  return 'Đủ <b>' + esc(fmtMix(sb, sb.thr)) + '</b> → ' + esc(sb.reward) + ' · ' + (st.ok ? '✓ đã đủ mốc' : 'còn thiếu <b>' + esc(fmtMix(sb, st.rest)) + '</b>') + ' · ' + (sb.cum ? 'cộng dồn' : 'phải đủ trong 1 đơn');
+}
 function groupBlock(d, sb) {
   const st = subStat(sb), kk = mxState(st), du = esc(d.u || 'sp');
   const where = brandsOf(sb).slice(0, 2).join(', ');
@@ -1502,17 +1547,18 @@ function progCard(o) {
   const badges = (o.stack ? '<i class="pb ok">Cộng CTKM quý</i>' : '<i class="pb no">KHÔNG cộng CTKM quý</i>') + (o.group ? (o.cum ? '<i class="pb">Cộng dồn</i>' : '<i class="pb">Phải đủ trong 1 đơn</i>') : '');
   return '<div class="thr dbt px' + (o.best ? ' px-best' : '') + '"><div class="px-h thr-m"><b>' + esc(o.title) + '</b>' + (o.best ? '<i class="pb best">Rẻ nhất</i>' : '') + expText(o.e) + '</div>' +
     '<div class="px-b">' + badges + '</div>' + (o.warn || '') + (o.group || '') + (o.box || '') + (o.act || '') +
-    '<details class="px-c"><summary>Xem điều kiện</summary><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></details></div>';
+    '<div class="px-c orig"><b>Điều kiện của công ty</b><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></div></div>';
 }
 const chipsFold = act => act ? '<details class="px-r"><summary>Đặt riêng sản phẩm này</summary>' + act + '</details>' : '';
-function stackCards(items) {
+function stackCards(items, d) {
   if (!items.length) return '';
   const priced = items.filter(x => x.P != null).sort((p, q) => p.P - q.P), rest = items.filter(x => x.P == null);
   const all = priced.concat(rest);
   if (priced.length >= 2) all[0].o.best = true;
-  const html = all.map(x => progCard(x.o));
-  if (html.length === 1) return html[0];
-  return html[0] + '<details class="px-more"><summary>+' + (html.length - 1) + ' chương trình nữa</summary>' + html.slice(1).join('') + '</details>';
+  const unit = esc(pUnit(d));
+  return all.map((x, i) => accWrap(d, 's', 'p' + i, 'd', esc(x.o.title), x.o.best ? 'Rẻ nhất' : '',
+    (x.P != null ? 'Giá cuối khi đủ mức <b>' + fmt(x.P) + '/' + unit + '</b> · ' : '') + (x.o.stack ? 'cộng CTKM quý' : 'KHÔNG cộng CTKM quý') + (x.o.group ? ' · tính chung cả nhóm' : ''),
+    (x.P != null && !x.o.box ? '<div class="acc-pr">Giá cuối khi mua đủ mức: <b>' + fmt(x.P) + '/' + unit + '</b></div>' : '') + progCard(x.o), 'p0')).join('');
 }
 function specialLines(d) {
   const n = qtyOf[d.w] || 0;
@@ -1538,7 +1584,7 @@ function specialLines(d) {
     return { P: pr && pr.P != null ? pr.P : null, o: { title: prog, e: p.e, stack: p.stack, cum: sb ? sb.cum : false, group: sb ? groupBlock(d, sb) : '', box, act: sb ? chipsFold(act) : act, full: p.full || p.cond || '',
       note: (p.stack ? 'cộng được với CTKM quý' : 'KHÔNG cộng CTKM quý') + (need > 0 || p.fixed == null ? '' : ' · giá xem ở Tính giá') } };
   });
-  return stackCards(items.concat(pinfoItems(d)));
+  return stackCards(items.concat(pinfoItems(d)), d);
 }
 
 // Quà không quy ra tiền: mốc tính chung cả nhóm sản phẩm của chương trình; tiến độ lấy từ cả đơn hàng; nút đặt riêng sản phẩm này gấp trong "Đặt riêng sản phẩm này"
@@ -1608,6 +1654,12 @@ function thrLine(d0, n) {
   /* CTKM quý cũng có đơn hỗn hợp (người dùng bảo 22/11/2026): luật nhóm cùng mốc E của sản phẩm → tiến độ tính CẢ ĐƠN + "+ Thêm" + "Trộn sản phẩm khác ›" */
   const gsub = allSubs().find(x => x.kind === 'q' && x.members.has(d.w) && x.members.size > 1 && (kind === 'money' ? (x.tk === 'money' && Math.abs(x.thr - d.e) < 1) : (x.tk === 'qty' && x.thr === d.f)));
   const gb = gsub ? groupBlock(d, gsub) : '';
+  const rl = rulesOf(d), grpL = rl.filter(isGrpRule), ownL = rl.filter(r => !isGrpRule(r));
+  const quyAcc = (own, sumOwn, cls) => {
+    if (!gsub) return '<div class="' + cls + '">' + own + origBox(rl) + '</div>';
+    return accWrap(d, 'q', 'own', 'q', '① Mua riêng sản phẩm này', '', sumOwn, own + origBox(ownL.length ? ownL : rl), 'own') +
+      accWrap(d, 'q', 'grp', 'q', '② Mua chung ' + gsub.members.size + ' sản phẩm', '', groupSummary(d, gsub), gb + origBox(grpL), 'own');
+  };
   const useChips = need > 1 && (kind === 'money' || (d.n > 0 && d.o));
   if (useChips) {
     const items = [1, 2, 3].map(k => {
@@ -1627,11 +1679,12 @@ function thrLine(d0, n) {
         return '<button type="button" class="thrbtn chip rowb' + (cur ? ' on' : '') + '" data-set="' + d.w + '" data-n="' + it.qty + '" data-prog="q"><span class="rb-l"><b>' + it.qty + ' ' + u + ' · ' + it.k + ' suất</b><small>' + giftK(it.k) + '</small></span>' +
           '<span class="rb-r"><b>' + fmt(it.P) + '/' + unit + '</b><small class="' + (diff > 0.5 ? 'rb-g' : '') + '">' + (same ? 'giá không đổi' : it.k === 1 ? 'mức thấp nhất' : diff > 0.5 ? 'rẻ hơn ' + fmt(diff) + '/' + unit : diff < -0.5 ? 'đắt hơn ' + fmt(-diff) + '/' + unit : 'bằng mức thấp nhất') + '</small></span></button>';
       }).join('');
-      return '<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>' + (same ? 'Giá mỗi ' + unit + ' không đổi · mua gấp đôi thì tặng gấp đôi' : 'Mua nhiều thì giá mỗi ' + unit + ' thay đổi') + noteGia + ' · bấm dòng để chọn mức</span></div>' + stt + '<div class="px-rows">' + rows + '</div>' + gb + '</div>';
+      return quyAcc('<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>' + (same ? 'Giá mỗi ' + unit + ' không đổi · mua gấp đôi thì tặng gấp đôi' : 'Mua nhiều thì giá mỗi ' + unit + ' thay đổi') + noteGia + ' · bấm dòng để chọn mức</span></div>' + stt + '<div class="px-rows">' + rows + '</div></div>',
+        esc(head.replace(/<[^>]+>/g, '')) + ' · ' + fmt(items[0].P) + '/' + unit, 'acc-plain');
     }
-    return '<div class="thr' + (reached ? ' ok' : '') + '">' + text + chipsHtml(d, items, 'q') + gb + '</div>';
+    return quyAcc('<div class="thr' + (reached ? ' ok' : '') + '">' + text + chipsHtml(d, items, 'q') + '</div>', text.replace(/<[^>]+>/g, ''), 'acc-plain');
   }
-  return '<div class="thr' + (reached ? ' ok' : '') + '">' + text + (n !== need ? setBtn(d, need, 'q') : '') + gb + '</div>';
+  return quyAcc('<div class="thr' + (reached ? ' ok' : '') + '">' + text + (n !== need ? setBtn(d, need, 'q') : '') + '</div>', text.replace(/<[^>]+>/g, ''), 'acc-plain');
 }
 
 // Nhãn lớn (giống app công ty) → các nhóm nhỏ trong bảng giá. Nhóm chưa xếp được vào nhãn nào thì tự thành nhãn riêng.
@@ -2540,7 +2593,7 @@ document.addEventListener('click', e => {
     const el = $('b' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
   }
   if (b.id === 'clearAll') {   // làm lại từ đầu: bỏ mọi số lượng, chương trình và thẻ đang mở, về đầu trang
-    Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
+    Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); Object.keys(accSel).forEach(k => delete accSel[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
     saveCart(); renderCatalog(); renderCart(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
   }
   if (b.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -2595,6 +2648,12 @@ document.addEventListener('click', e => {
   if (b.dataset.pclose !== undefined) {
     const w = +b.dataset.pclose, d = DATA.find(x => x.w === w);
     popen.delete(w); b.closest('.card').outerHTML = card(d); return;
+  }
+  if (b.dataset.acc !== undefined) {   // accordion trong ngăn: mở thẻ này (bấm lại thì gập hết), vẽ lại riêng thẻ sản phẩm
+    const [w0, tb, id] = b.dataset.acc.split('|'), w = +w0, k = w0 + '|' + tb, d = DATA.find(x => x.w === w);
+    const cur = accSel[k], was = b.getAttribute('aria-expanded') === 'true';
+    accSel[k] = was ? '' : id; void cur;
+    b.closest('.card').outerHTML = card(d); return;
   }
   if (b.dataset.tab) {   // nhãn CTKM quý / CTKM đặc biệt: mở đơn hàng của chương trình đó (gập nếu đang mở), vẽ lại riêng thẻ này
     const el = b.closest('.card'), w = +el.dataset.w, d = DATA.find(x => x.w === w);
