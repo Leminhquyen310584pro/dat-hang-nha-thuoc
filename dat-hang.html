@@ -1283,11 +1283,12 @@ function infoBlock(x) {
   };
   const hl = rowOf('Hàm lượng');
   const dang = (x.rows || []).find(r => r[0] === 'Phân loại' && r[1] !== 'Mỹ phẩm');
-  const chips = (x.loai ? '<span class="pi-chip a">' + esc(x.loai) + '</span>' : '') + (dang ? '<span class="pi-chip b">' + esc(dang[1]) + '</span>' : '');
+  const qc = (String(x.ten || '').match(/\d+(?:[.,]\d+)?\s?(?:g|ml|mL|gói|viên)/) || [''])[0];
+  const chips = (x.loai ? '<span class="pi-chip a">' + esc(x.loai) + '</span>' : '') + (dang ? '<span class="pi-chip b">' + esc(dang[1]) + '</span>' : '') + (qc ? '<span class="pi-chip b">' + esc(qc) + '</span>' : '');
   const cdc = (t.cong_dung_chat || []).map((l, n) => { const i = l.indexOf(': '); const tg = (t.cdc_nguon && t.cdc_nguon[n]) ? '<small class="pi-tag">Nguồn: ' + esc(t.cdc_nguon[n]) + '</small>' : ''; return i > 0 && i < 90 ? '<div class="pi-i"><b>' + esc(l.slice(0, i)) + '</b> <span>– ' + esc(l.slice(i + 2)) + '</span>' + tg + '</div>' : '<div class="pi-i"><span>' + esc(l) + '</span>' + tg + '</div>'; }).join('');
   const code = rowOf('Mã sản phẩm'), luu = arr(rowOf('Lưu ý')).filter(l => !/^cách dùng\s*:/i.test(l)).join(NL), chd = rowOf('Chỉ định'), bq = rowOf('Bảo quản');
-  return '<div class="thr ti pi"><div class="pi-top"><div><div class="pi-name">' + esc(niceName(x.ten)) + '</div><div class="pi-chips">' + chips + '</div></div></div>' +
-    '<div class="pi-hl"><b>Hàm lượng</b><span>' + (hl ? esc(arr(hl).join(' · ')) : 'Không công bố hàm lượng') + '</span></div>' +
+  return '<div class="thr ti pi"><div class="pi-top"><div><div class="pi-chips">' + chips + '</div></div></div>' +
+    (hl ? '<div class="pi-hl"><b>Hàm lượng</b><span>' + esc(arr(hl).join(' · ')) + '</span></div>' : '') +
     sec('tp', '🧪', 'Thành phần chính', pills()) +
     sec('cd', '✨', 'Công dụng', cdBlock()) +
     sec('dt', '👥', 'Đối tượng', dtBlock()) +
