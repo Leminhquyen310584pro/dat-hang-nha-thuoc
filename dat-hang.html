@@ -1752,6 +1752,23 @@ function brandTree() {
     const kind = d => /mask/i.test(d.t) ? 0 : /cleans|micellar/i.test(d.t) ? 2 : 1;
     hb.items[g] = arr.map((d, i) => [d, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || (rank(x[0]) === 4 ? kind(x[0]) - kind(y[0]) : 0) || x[1] - y[1]).map(x => x[0]);
   });
+  // Acnes: xếp theo công dụng, cùng tên đứng liền nhau (chỉ đổi cách hiện, không đổi Excel); Medical Cream đứng cùng nhóm trị mụn
+  const ab = map['ACNES'];
+  if (ab) {
+    const gl = ab.subs.find(g => /^8\./.test(g)), gm = ab.subs.find(g => /^10B/.test(g));
+    if (gm) {
+      const all = ab.subs.filter(g => g !== gl).flatMap(g => ab.items[g]);
+      const AO = [/foaming|creamy|oil control|gentle wash|anti-?black|facial wash|washing bar/i,
+        /vitamin|whitening/i,
+        /medical cream|sealing|blemish clear|scar care|blemish control mask|clear patch/i,
+        /toner|sunscreen|facial serum|micellar|make ?up remover/i,
+        /oil remover|green tea oil/i, /body shower|mud mask/i];
+      const rk = d => { const i = AO.findIndex(r => r.test(d.t)); return i < 0 ? 99 : i; };
+      ab.items[gm] = all.map((d, i) => [d, i]).sort((x, y) => rk(x[0]) - rk(y[0]) || x[1] - y[1]).map(x => x[0]);
+      ab.subs = (gl ? [gl] : []).concat([gm]);
+      Object.keys(ab.items).forEach(g => { if (g !== gl && g !== gm) delete ab.items[g]; });
+    }
+  }
   // xếp theo vần A–Z như app công ty
   return order.sort((a, b) => map[a].name.localeCompare(map[b].name, 'vi')).map(k => map[k]);
 }
