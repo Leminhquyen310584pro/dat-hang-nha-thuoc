@@ -2565,6 +2565,11 @@ function renderMixTop(g, r){
       row(head + what + ckt + (c.warn ? ' · thiếu giá quà' : ''), c.warn ? 'warn' : '', c.r.opts.length > 1 ? () => openQSheet(c) : null);
     });
   } else if (!none && r.giftN > 0) row('Tặng ' + r.giftN + ' ' + r.giftLabel + (r.warn ? ' · thiếu giá quà' : ''), r.warn ? 'warn' : '', null);
+  /* CTĐB có cộng CT Quý: quà của luật nhóm quý (vd Hada Labo Caring) hiện thành dòng riêng, đổi bằng bảng chọn như ở màn nhóm quý (người dùng bảo 25/11/2026) */
+  if (!none && g.kind !== 'rule') (r.qcards || []).forEach(c => {
+    if (!(c.giftN > 0 && c.opt)) return;
+    row('CTKM quý (cộng thêm): tặng ' + c.giftN + ' ' + c.opt.label + (c.warn ? ' · thiếu giá quà' : ''), c.warn ? 'warn' : '', c.r.opts.length > 1 ? () => openQSheet(c) : null);
+  });
   gb.hidden = !gb.children.length;
 }
 function openQSheet(c){
