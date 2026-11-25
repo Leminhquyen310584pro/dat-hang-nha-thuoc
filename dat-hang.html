@@ -1744,6 +1744,14 @@ function brandTree() {
     if (!b.items[g]) { b.items[g] = []; b.subs.push(g); }
     b.items[g].push({ w: -(i + 1), t: s.t, q: s.code, g: s.brand, soon: true });
   });
+  // Hada Labo: xếp cùng dòng gần nhau (chỉ đổi cách hiện, không đổi Excel); sữa rửa mặt đứng cùng dòng của nó
+  const HL = [/perfect white/i, /advan\w* nourish/i, /pro ?aging/i, /acne care/i, /premium/i, /micellar/i, /gokujyun/i];
+  const hb = map['HADALABO'];
+  if (hb) Object.keys(hb.items).forEach(g => {
+    const arr = hb.items[g], rank = d => { if (/gokujyun/i.test(d.t)) return 6; if (/micellar/i.test(d.t)) return 5; const i = HL.findIndex(r => r.test(d.t)); return i < 0 ? 99 : i; };
+    const kind = d => /mask/i.test(d.t) ? 0 : /cleans|micellar/i.test(d.t) ? 2 : 1;
+    hb.items[g] = arr.map((d, i) => [d, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || (rank(x[0]) === 4 ? kind(x[0]) - kind(y[0]) : 0) || x[1] - y[1]).map(x => x[0]);
+  });
   // xếp theo vần A–Z như app công ty
   return order.sort((a, b) => map[a].name.localeCompare(map[b].name, 'vi')).map(k => map[k]);
 }
