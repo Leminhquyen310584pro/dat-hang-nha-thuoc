@@ -846,7 +846,7 @@ function computeP(prod, v){
   const F = v.F == null ? 1 : v.F;
   const M = v.M == null ? 1 : v.M;
   const G = v.G || 0, H = v.H || 0, I = v.I || 0;
-  const J = v.J || 0, N = v.N || 0;
+  const J = v.J || 0, N = (v.X || []).some(g => g.repl) ? 0 : (v.N || 0);
   const Kg = v.K || null, Og = v.O || null;
   const L = F * C * (1 - G) * (1 - H) * (1 - I);
   const sameK = !!(Kg && Kg.ty === 's' && Kg.k && Kg.k === B);
@@ -1631,7 +1631,9 @@ function caringOf(d, any){
   const rs = rules_().filter(r => r.members.has(d.w) && (isCaringRule(r) || (/rửa mặt và dòng nước tẩy trang/i.test(r.name) && r.thr !== d.e))).sort((x, y) => y.thr - x.thr);
   return rs.length ? { hi: rs[0], lo: rs[1] || null } : null;
 }
-const caringSuat = (d, F, r) => Math.floor(F * cNet(d) / r.thr + 1e-9);
+/* Caring (người dùng chốt 26/11/2026): đơn đã đủ mốc 900.000đ thì KHÔNG còn mốc 450.000đ (1.400.000đ chỉ 1 kem, 1.800.000đ mới 2 kem) */
+const caringTop = (w, r) => isCaringRule(r) ? rules_().find(h => isCaringRule(h) && h.thr > r.thr && h.members.has(w)) || null : null;
+const caringSuat = (d, F, r) => { const t = F * cNet(d), h = caringTop(d.w, r); return h && t >= h.thr - 1e-9 ? 0 : Math.floor(t / r.thr + 1e-9); };
 function caringX(d, F, picks, any){
   const c = caringOf(d, any); if (!c) return [];
   const pk = picks || CX[d.w] || {}, out = [], sameGi = GIFTS.findIndex(g => g.ty === 's' && g.k === d.b);
@@ -1639,7 +1641,8 @@ function caringX(d, F, picks, any){
     if (!r || pk[key] == null || pk[key] === '') return;
     const k = caringSuat(d, F, r), o = r.opts.find(x => String(x.gi) === String(pk[key])); if (!(k > 0) || !o) return;
     const same = sameGi >= 0 && normK(GIFTS[sameGi].l).includes(normK(o.label.replace(/\(.*$/, '')));
-    out.push(same ? { n: k * o.n, same: true, l: 'cùng loại', g: 'caring' } : { n: k * o.n, same: false, p: GIFTS[o.gi].p, l: giftShort(GIFTS[o.gi].l), g: 'caring' });
+    const repl = key === 'hi' && isCaringRule(r);   // kem của mốc 900k THAY quà cùng loại, không cộng thêm
+    out.push(same ? { n: k * o.n, same: true, l: 'cùng loại', g: 'caring', repl } : { n: k * o.n, same: false, p: GIFTS[o.gi].p, l: giftShort(GIFTS[o.gi].l), g: 'caring', repl });
   });
   return out;
 }
@@ -1649,7 +1652,7 @@ function renderCaring(d, card, F, u){
     if (!r) return;
     const k = caringSuat(d, F, r), box = document.createElement('div'); box.className = 'gopts'; box.dataset.caring = key;
     const h = document.createElement('div'); h.className = 'each-t'; h.style.marginTop = '10px';
-    h.textContent = title + ' · ' + (k > 0 ? '✓ ' + k + ' suất (đủ ' + fmt(r.thr) + ')' : 'chưa đủ ' + fmt(r.thr)) + ' · suất riêng, nhận thêm'; card.appendChild(h);
+    h.textContent = title + ' · ' + (k > 0 ? '✓ ' + k + ' suất (đủ ' + fmt(r.thr) + ')' : (caringTop(d.w, r) && F * cNet(d) >= caringTop(d.w, r).thr - 1e-9 ? 'đã lên mốc ' + fmt(caringTop(d.w, r).thr) : 'chưa đủ ' + fmt(r.thr))) + (!isCaringRule(r) ? ' · suất riêng, nhận thêm' : (key === 'hi' ? ' · chọn kem thì THAY quà cùng loại' : ' · chỉ khi chưa đủ 900.000đ')); card.appendChild(h);
     r.opts.forEach(o => {
       const cur = (CX[d.w] || {})[key], on = String(cur) === String(o.gi), b = document.createElement('button'); b.type = 'button'; b.className = 'gopt'; b.setAttribute('aria-pressed', String(on)); b.disabled = k === 0;
       let pr = '—';
@@ -2129,13 +2132,13 @@ function ownSameRule(d){
 }
 /* Son (người dùng chốt 26/11/2026): dòng nào tự đủ mốc "cùng loại" (son thường 330.000đ, Lip On Lip 400.000đ) thì được tặng chính nó, tiền đó KHÔNG tính tiếp cho luật "son bất kỳ";
    luật "bất kỳ" chỉ gom tiền các dòng CHƯA đủ mốc cùng loại. */
-const isSonAny = r => r.tk === 'money' && /liponlipbatky|cacsanphamsonbatky/.test(r.key);
+const noReuse = r => r.tk === 'money' && (/liponlipbatky|cacsanphamsonbatky/.test(r.key) || isCaringRule(r));
 const tookSame = (w, q) => { const d = dataW(w), so = ownSameRule(d); return !!so && Math.floor((q || 0) * cNet(d) / d.e + 1e-9) > 0; };
 function mixComputeR(g, qty){
   const used = w => (qty[w] || 0) > 0;
-  const active = rules_().filter(r => [...r.members].some(w => used(w) && !(isSonAny(r) && tookSame(w, qty[w])))), cards = [];
+  const active = rules_().filter(r => [...r.members].some(w => used(w) && !(noReuse(r) && tookSame(w, qty[w])))), cards = [];
   active.forEach(r => {
-    const ws = [...r.members].filter(w => used(w) && !(isSonAny(r) && tookSame(w, qty[w]))); let total = 0, gross = 0;
+    const ws = [...r.members].filter(w => used(w) && !(noReuse(r) && tookSame(w, qty[w]))); let total = 0, gross = 0;
     ws.forEach(w => { const q = qty[w], c = dataW(w).c; gross += q * c; total += r.tk === 'money' ? q * cNet(dataW(w)) : q * (r.weight[w] || 1); });
     const ok = total >= r.thr - 1e-9, suat = ok ? Math.floor(total / r.thr + 1e-9) : 0;
     let gi = mixPick[r.key];
@@ -2147,6 +2150,7 @@ function mixComputeR(g, qty){
   { /* luật Sunplay 550k không áp dụng đồng thời suất 430k Sunplay/Oxy: đủ cả hai thì CHỈ nhận quà suất 550k (người dùng chốt 17/11/2026) */
     const c4 = cards.find(c => /430\.000đ · Sunplay\/Oxy/.test(c.r.name)), c5 = cards.find(c => /550\.000đ · Sunplay/.test(c.r.name));
     if (c4 && c5 && c4.ok && c5.ok && c4.giftN > 0 && c5.giftN > 0) { c4.excl = true; c4.giftN = 0; c4.value = 0; c4.warn = null; } }
+  for (let i = cards.length - 1; i >= 0; i--) { const c = cards[i]; if (cards.some(h => isCaringRule(c.r) && isCaringRule(h.r) && h.r.thr > c.r.thr && h.ok)) cards.splice(i, 1); }
   const lines = []; let warnAll = cards.find(c => c.warn);
   Object.keys(qty).map(Number).filter(used).forEach(w => {
     const d = dataW(w); if (!d) return;
@@ -2525,7 +2529,7 @@ function renderCalcStrips(d){
       items.push({ title: 'CTKM quý · ' + ruleLabel(cr.hi) + ' ' + grpFmtMoney(cr.hi.thr), st: { thr: cr.hi.thr, total: F * cNet(d), k: kh, money: true, unit: u, gift: kh, ck: 0, giftText: (kh > 0 && oh) ? kh * oh.n + ' ' + giftShort(GIFTS[oh.gi].l) : (kh > 0 ? kh + ' quà (chọn loại ở thẻ CTKM quý)' : '') },
         extra: 'suất riêng, chỉ tính sản phẩm đang xem (cùng nhóm: nút "Mua nhiều sản phẩm cùng nhóm")' });
     }
-    if (cr && cr.lo) {   // mốc 450k của dòng Caring là suất riêng
+    if (cr && cr.lo && !(isCaringRule(cr.hi) && F * cNet(d) >= cr.hi.thr - 1e-9)) {   // mốc 450k của dòng Caring chỉ khi chưa đủ 900k
       const kl = caringSuat(d, F, cr.lo), pl = (CX[d.w] || {}).lo, ol = cr.lo.opts.find(o => String(o.gi) === String(pl));
       items.push({ title: 'CTKM quý · Hada Labo dòng Caring ' + grpFmtMoney(cr.lo.thr), st: { thr: cr.lo.thr, total: F * cNet(d), k: kl, money: true, unit: u, gift: kl, ck: 0, giftText: (kl > 0 && ol) ? kl * ol.n + ' ' + giftShort(GIFTS[ol.gi].l) : (kl > 0 ? kl + ' Micellar Water (chọn loại ở thẻ CTKM quý)' : '') },
         extra: 'chỉ tính sản phẩm đang xem (cùng nhóm: nút "Mua nhiều sản phẩm cùng nhóm")' });
