@@ -889,6 +889,12 @@ body{font-feature-settings:"tnum" 0}
 .mt-tb th.r{text-align:right}
 #mixSheet .osheet-head .ghost{white-space:nowrap;flex:none}
 
+/* Phương án 1: đáy ngăn Đơn hỗn hợp khi giá ghép tự vào Đơn hàng */
+.mf-save{text-align:right;font-size:13px;font-weight:700;color:var(--quy-ink)}
+.mf-in{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--quy-soft);color:var(--quy-ink);border-radius:10px;padding:2px 10px;margin-top:6px;font-size:13px}
+.mf-link{min-height:40px;border:0;background:none;font-family:inherit;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
+.mf-note{font-size:12px;color:var(--muted);margin-top:4px}
+
 </style>
 </head>
 <body>
@@ -2397,6 +2403,7 @@ function selectMsGroup(s) {
   msCur = s;
   $('msQ').value = '';
   msListOpen = !mixResult(s);
+  msSig0 = mixSig(s); msNote = '';
   const ds = [...s.members].map(w => DW[w]).filter(Boolean).sort((a, b) => brandLabel(a).localeCompare(brandLabel(b), 'vi') || shortName(a).localeCompare(shortName(b), 'vi'));
   $('msList').innerHTML = ds.map(d => '<div class="msrow" data-w="' + d.w + '" data-k="' + esc(norm(d.t + ' ' + brandLabel(d))) + '"><div class="ms-n"><b>' + esc(shortName(d)) + '</b><small>' + esc(brandLabel(d)) + ' · ' + fmt(d.c) + ' /' + esc(d.u || 'sp') + '</small></div>' +
     '<div class="stepper" role="group"><button type="button" data-msd="' + d.w + '" aria-label="Giảm">−</button><input type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Số lượng ' + esc(shortName(d)) + '"><button type="button" data-msi="' + d.w + '" aria-label="Tăng">+</button></div></div>').join('');
@@ -2407,23 +2414,62 @@ function closeMixSheet() {
   msCur = null; $('mixSheet').hidden = true;
   if (!$('cart').classList.contains('open') && $('orderSheet').hidden) $('sheetBg').hidden = true;
 }
-// Nút "Dùng giá đơn hỗn hợp này cho phiếu Đơn hàng" / "Bỏ"
+/* Phương án 1 (người dùng chọn 26/11/2026): đủ mốc thì TỰ đưa giá ghép vào Đơn hàng, không cần bấm. Có "Tính riêng từng loại" để bỏ (nhớ lại, không tự áp nữa).
+   Không tự áp khi tính riêng đang lợi hơn. Mỗi sản phẩm chỉ thuộc một nhóm: chỉ giành sản phẩm của nhóm khác khi anh đổi số lượng ngay trong ngăn này, và có báo. */
+const mixOptOut = new Set(), mixForced = new Set();
+let msSig0 = '', msNote = '';
+const mixSig = s => [...s.members].map(w => qtyOf[w] || 0).join(',');
+const sepLine = l => { const d = DW[l.d.w]; return bothCalc(d, l.q) || calcQuy(d, l.q); };
+// giá ghép có lợi hơn không: so giá cuối của chính số lượng đang mua (đã tính quà) giữa ghép và tính riêng
+function mixBetter(res) {
+  let g = 0, r = 0;
+  for (const l of res.lines) { const x = sepLine(l); if (l.P == null || x.P == null) return false; g += l.P * l.q; r += x.P * l.q; }
+  return g < r - 0.5;
+}
+function mixClash(s, res) {   // các nhóm khác đang dùng sản phẩm của nhóm này
+  const MC = claimMap(), out = [];
+  res.lines.forEach(l => { const c = MC.claim.get(l.d.w); if (c && c.s.id !== s.id && !out.includes(c.s)) out.push(c.s); });
+  return out;
+}
+const mixDrop = id => { const i = mixApplied.indexOf(id); if (i >= 0) mixApplied.splice(i, 1); };
+function mixAutoApply(s) {
+  const res = mixResult(s);
+  if (!res) { mixOptOut.delete(s.id); mixForced.delete(s.id); return; }
+  if (res.kind === 'p') return;
+  const able = res.lines.length >= 2 && mixOk(res), good = able && (mixForced.has(s.id) || mixBetter(res));
+  if (mixApplied.includes(s.id)) { if (able && !good) { mixDrop(s.id); saveCart(); renderCart(); } return; }
+  if (!good || mixOptOut.has(s.id)) return;
+  const clash = mixClash(s, res);
+  if (clash.length && mixSig(s) === msSig0) return;   // mới chỉ mở xem: không tự giành
+  if (clash.length) { clash.forEach(c => mixDrop(c.id)); msNote = 'Đã bỏ giá ghép của nhóm ' + clash.map(c => mixTitleO(c)).join(', ') + ' vì trùng sản phẩm.'; }
+  mixApplied.push(s.id); saveCart(); renderCart();
+}
 function mixApplyHtml(s) {
   const res = mixResult(s);
   if (res && res.kind === 'p') return '<div class="ms-apply on"><span>' + (res.ok ? '✓ Đã tính quà · phiếu Đơn hàng có sẵn các sản phẩm này' : 'Phiếu Đơn hàng có sẵn các sản phẩm này') + '</span><span class="ms-btns"><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
-  const on = mixApplied.includes(s.id);
-  if (on) return '<div class="ms-apply on"><span>✓ Đã đưa vào phiếu Đơn hàng</span><span class="ms-btns"><button type="button" class="ms-apbtn" data-mxoff="' + esc(s.id) + '">Bỏ</button><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
-  const okGrp = !!res && res.lines.length >= 2 && mixOk(res);
-  const MC = claimMap(), conflict = !!res && res.lines.some(l => MC.claim.has(l.d.w));
   if (!res || res.lines.length === 0) return '';
   if (res.lines.length < 2) return '<div class="ms-apply off">Thêm 1 sản phẩm nữa của nhóm để dùng giá đơn hỗn hợp.</div><button type="button" class="ms-apbtn big" data-mxfocus="1">+ Chọn thêm sản phẩm</button>';
-  if (!okGrp) return '<div class="ms-apply off">Chưa đủ mốc: phiếu vẫn tính giá riêng từng sản phẩm.</div>';
-  if (conflict) return '<div class="ms-apply off">Có sản phẩm đang thuộc một nhóm đơn hỗn hợp khác. Bỏ nhóm kia trước.</div>';
-  return '<button type="button" class="ms-apbtn big" data-mxon="' + esc(s.id) + '">Dùng giá này cho Đơn hàng</button>';
+  if (!mixOk(res)) return '<div class="ms-apply off">Chưa đủ mốc: phiếu vẫn tính giá riêng từng sản phẩm.</div>';
+  const off = (msg, btn) => '<div class="ms-apply off">' + msg + '</div><button type="button" class="ms-apbtn big" data-mxon="' + esc(s.id) + '">' + btn + '</button>';
+  if (mixApplied.includes(s.id)) {
+    let sepPay = 0, sepGift = 0;
+    res.lines.forEach(l => { const x = sepLine(l), q = calcQuy(DW[l.d.w], l.q); sepPay += x.pay != null ? x.pay : q.pay; sepGift += Math.max(q.N || 0, (q.units || l.q) - l.q); });
+    const diff = sepPay - res.pay, extra = mixGiftRows(res).reduce((a, g) => a + g.n, 0) - sepGift;
+    const bits = [diff > 0.5 ? 'rẻ hơn tính riêng ' + fmt(diff) : '', extra > 0 ? 'thêm ' + extra + ' quà' : ''].filter(Boolean);
+    return '<div class="mf-save">' + (bits.length ? bits.join(', ') : 'giá cuối thấp hơn tính riêng') + '</div>' +
+      '<div class="mf-in"><b>✓ Đã có trong Đơn hàng</b><button type="button" class="mf-link" data-mxoff="' + esc(s.id) + '">Tính riêng từng loại</button></div>' +
+      (msNote ? '<div class="mf-note">' + esc(msNote) + '</div>' : '') +
+      '<button type="button" class="ms-apbtn big" data-mxview="1">Xem đơn hàng ›</button>';
+  }
+  const clash = mixClash(s, res);
+  if (clash.length) return off('Có sản phẩm đang tính ở nhóm ' + esc(clash.map(c => mixTitleO(c)).join(', ')) + '.', 'Chuyển sang nhóm này');
+  if (mixOptOut.has(s.id)) return off('Đang tính riêng từng loại.', 'Dùng giá ghép');
+  return off('Tính riêng từng loại đang lợi hơn.', 'Vẫn dùng giá ghép');
 }
 // cập nhật thanh tiến độ và các ô số lượng mà không vẽ lại danh sách (giữ vị trí cuộn)
 function msUpdate() {
   if (!msCur) return;
+  mixAutoApply(msCur);
   if (msScope.length > 1) {   // chọn nhóm ngay trong ngăn: mỗi nhóm một dòng, nhóm đang chọn mở chi tiết ngay dưới
     const gs = msScope.map(id => allSubs().find(x => x.id === id)).filter(Boolean);
     const rowOf = (g, st, on) => '<button type="button" class="mp-row' + (on ? ' on' : '') + (st.ok ? ' ok' : '') + '" data-mxs="' + esc(g.id) + '" aria-pressed="' + on + '"><span class="mp-n"><i class="mxtag ' + (g.kind === 'q' ? 'q' : 'd') + '">' + (g.kind === 'q' ? 'Quý' : 'Đặc biệt') + '</i>' + esc(mixHead(g).full) + '</span><em>' + (st.ok ? '✓ đủ' : (st.up ? '→ mốc ' + fmt(st.up) : 'thiếu ' + fmtMix(g, st.rest))) + '</em></button>';
@@ -2702,7 +2748,7 @@ function copyText() {
 }
 
 // Lưu đơn trên máy (không bắt buộc: nếu trình duyệt chặn thì đơn chỉ tồn tại trong phiên này)
-function saveCart() { try { localStorage.setItem(PACK_KEY, JSON.stringify(packOf)); localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(GK_KEY, JSON.stringify(gkOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick })); } catch (e) { /* bỏ qua */ } }
+function saveCart() { try { localStorage.setItem(PACK_KEY, JSON.stringify(packOf)); localStorage.setItem(STORE_KEY, JSON.stringify(qtyOf)); localStorage.setItem(PROG_KEY, JSON.stringify(progOf)); localStorage.setItem(OPT_KEY, JSON.stringify(optOf)); localStorage.setItem(CX_KEY, JSON.stringify(cxOf)); localStorage.setItem(GK_KEY, JSON.stringify(gkOf)); localStorage.setItem(VQ_KEY, JSON.stringify(vqOf)); localStorage.setItem(MIXAPP_KEY, JSON.stringify({ a: mixApplied, p: mixPick, o: [...mixOptOut], f: [...mixForced] })); } catch (e) { /* bỏ qua */ } }
 function loadCart() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -2714,6 +2760,7 @@ function loadCart() {
     Object.keys(pks).forEach(k => { const n = Math.floor(+pks[k]); if (PACK_CFG[k] && n > 0) packOf[k] = Math.min(n, PACK_MAX); });
     const mx = JSON.parse(localStorage.getItem(MIXAPP_KEY) || '{}');
     (mx.a || []).forEach(id => { if (typeof id === 'string' && !mixApplied.includes(id)) mixApplied.push(id); });
+    (mx.o || []).forEach(id => mixOptOut.add(id)); (mx.f || []).forEach(id => mixForced.add(id));
     Object.keys(mx.p || {}).forEach(k => { if (Number.isInteger(mx.p[k])) mixPick[k] = mx.p[k]; });
     const op = JSON.parse(localStorage.getItem(OPT_KEY) || '{}');
     Object.keys(op).forEach(k => { if (ORDER_OPTS[k] && Number.isInteger(op[k]) && ORDER_OPTS[k][op[k]]) optOf[k] = op[k]; });
@@ -2792,8 +2839,8 @@ document.addEventListener('click', e => {
     setQty(w, (qtyOf[w] || 0) + (b.dataset.msi !== undefined ? 1 : -1)); return;
   }
   if (b.id === 'msClose') { closeMixSheet(); return; }
-  if (b.dataset.mxon !== undefined) { if (!mixApplied.includes(b.dataset.mxon)) mixApplied.push(b.dataset.mxon); saveCart(); renderCart(); msUpdate(); return; }
-  if (b.dataset.mxoff !== undefined) { const i = mixApplied.indexOf(b.dataset.mxoff); if (i >= 0) mixApplied.splice(i, 1); saveCart(); renderCart(); msUpdate(); return; }
+  if (b.dataset.mxon !== undefined) { const id = b.dataset.mxon, g = allSubs().find(x => x.id === id), res = g && mixResult(g); mixOptOut.delete(id); mixForced.add(id); if (res) mixClash(g, res).forEach(c => mixDrop(c.id)); if (!mixApplied.includes(id)) mixApplied.push(id); msNote = ''; saveCart(); renderCart(); msUpdate(); return; }
+  if (b.dataset.mxoff !== undefined) { mixOptOut.add(b.dataset.mxoff); mixForced.delete(b.dataset.mxoff); mixDrop(b.dataset.mxoff); msNote = ''; saveCart(); renderCart(); msUpdate(); return; }
   if (b.dataset.mxpick !== undefined) {   // đổi quà của luật nhóm
     const [k, gi] = b.dataset.mxpick.split('|'); mixPick[k] = +gi; msUpdate(); return;
   }
@@ -2829,7 +2876,7 @@ document.addEventListener('click', e => {
     const el = $('b' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
   }
   if (b.id === 'clearAll') {   // làm lại từ đầu: bỏ mọi số lượng, chương trình và thẻ đang mở, về đầu trang
-    Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); Object.keys(accSel).forEach(k => delete accSel[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0;
+    Object.keys(packOf).forEach(k => delete packOf[k]); Object.keys(qtyOf).forEach(k => delete qtyOf[k]); Object.keys(progOf).forEach(k => delete progOf[k]); Object.keys(tabOf).forEach(k => delete tabOf[k]); Object.keys(accSel).forEach(k => delete accSel[k]); popen.clear(); Object.keys(optOf).forEach(k => delete optOf[k]); mixApplied.length = 0; mixOptOut.clear(); mixForced.clear();
     saveCart(); renderCatalog(); renderCart(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
   }
   if (b.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
