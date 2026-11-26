@@ -895,6 +895,14 @@ body{font-feature-settings:"tnum" 0}
 .mf-link{min-height:40px;border:0;background:none;font-family:inherit;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
 .mf-note{font-size:12px;color:var(--muted);margin-top:4px}
 
+/* Phương án 5: hai ô "Ghép đơn | Tính riêng" ở đáy ngăn */
+.mf-ways{display:flex;gap:8px}
+.mf-way{flex:1 1 0;min-width:0;min-height:60px;border:2px solid var(--line);background:var(--surface);border-radius:12px;font-family:inherit;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:7px 4px}
+.mf-way span{font-size:12.5px;font-weight:700}
+.mf-way b{font-size:18px}
+.mf-way.on{border-color:var(--quy);background:var(--quy-soft);cursor:default}
+.mf-cmp{font-size:12.5px;color:var(--muted);text-align:center;margin-top:5px}
+
 </style>
 </head>
 <body>
@@ -2450,21 +2458,21 @@ function mixApplyHtml(s) {
   if (!res || res.lines.length === 0) return '';
   if (res.lines.length < 2) return '<div class="ms-apply off">Thêm 1 sản phẩm nữa của nhóm để dùng giá đơn hỗn hợp.</div><button type="button" class="ms-apbtn big" data-mxfocus="1">+ Chọn thêm sản phẩm</button>';
   if (!mixOk(res)) return '<div class="ms-apply off">Chưa đủ mốc: phiếu vẫn tính giá riêng từng sản phẩm.</div>';
-  const off = (msg, btn) => '<div class="ms-apply off">' + msg + '</div><button type="button" class="ms-apbtn big" data-mxon="' + esc(s.id) + '">' + btn + '</button>';
-  if (mixApplied.includes(s.id)) {
-    let sepPay = 0, sepGift = 0;
-    res.lines.forEach(l => { const x = sepLine(l), q = calcQuy(DW[l.d.w], l.q); sepPay += x.pay != null ? x.pay : q.pay; sepGift += Math.max(q.N || 0, (q.units || l.q) - l.q); });
-    const diff = sepPay - res.pay, extra = mixGiftRows(res).reduce((a, g) => a + g.n, 0) - sepGift;
-    const bits = [diff > 0.5 ? 'rẻ hơn tính riêng ' + fmt(diff) : '', extra > 0 ? 'thêm ' + extra + ' quà' : ''].filter(Boolean);
-    return '<div class="mf-save">' + (bits.length ? bits.join(', ') : 'giá cuối thấp hơn tính riêng') + '</div>' +
-      '<div class="mf-in"><b>✓ Đã có trong Đơn hàng</b><button type="button" class="mf-link" data-mxoff="' + esc(s.id) + '">Tính riêng từng loại</button></div>' +
-      (msNote ? '<div class="mf-note">' + esc(msNote) + '</div>' : '') +
-      '<button type="button" class="ms-apbtn big" data-mxview="1">Xem đơn hàng ›</button>';
-  }
-  const clash = mixClash(s, res);
-  if (clash.length) return off('Có sản phẩm đang tính ở nhóm ' + esc(clash.map(c => mixTitleO(c)).join(', ')) + '.', 'Chuyển sang nhóm này');
-  if (mixOptOut.has(s.id)) return off('Đang tính riêng từng loại.', 'Dùng giá ghép');
-  return off('Tính riêng từng loại đang lợi hơn.', 'Vẫn dùng giá ghép');
+  const on = mixApplied.includes(s.id), clash = on ? [] : mixClash(s, res);
+  /* Phương án 5 (người dùng chọn 26/11/2026): đặt hai cách cạnh nhau để chọn; ô đang dùng có dấu ✓. Việc tự áp giá ghép giữ như trước. */
+  let sepPay = 0, sepGift = 0;
+  res.lines.forEach(l => { const x = sepLine(l), q = calcQuy(DW[l.d.w], l.q); sepPay += x.pay != null ? x.pay : q.pay; sepGift += Math.max(q.N || 0, (q.units || l.q) - l.q); });
+  const grpGift = mixGiftRows(res).reduce((a, g) => a + g.n, 0), grpBits = mixSummary(res).cks.concat(grpGift ? ['tặng ' + grpGift] : []);
+  const box = (label, value, sel, attr) => '<button type="button" class="mf-way' + (sel ? ' on' : '') + '" aria-pressed="' + sel + '"' + (sel ? '' : ' ' + attr + '="' + esc(s.id) + '"') + '><span>' + (sel ? '✓ ' : '') + label + '</span><b>' + fmt(value) + '</b></button>';
+  let note = '';
+  if (clash.length) note = 'Có sản phẩm đang tính ở nhóm ' + clash.map(c => mixTitleO(c)).join(', ') + '. Bấm "Ghép đơn" để chuyển sang nhóm này.';
+  else if (on && res.pay >= sepPay - 0.5 && mixBetter(res)) note = 'Ghép trả nhiều hơn nhưng giá cuối từng loại thấp hơn.';
+  else if (!on && !mixOptOut.has(s.id) && !mixBetter(res)) note = 'Tính riêng từng loại đang lợi hơn.';
+  else if (on) note = msNote;
+  return '<div class="mf-ways">' + box('Ghép đơn', res.pay, on, 'data-mxon') + box('Tính riêng', sepPay, !on, 'data-mxoff') + '</div>' +
+    '<div class="mf-cmp">Ghép: ' + esc(grpBits.join(' + ') || 'không quà') + ' · Riêng: ' + (sepGift ? 'tặng ' + sepGift : 'không quà') + '</div>' +
+    (note ? '<div class="mf-note">' + esc(note) + '</div>' : '') +
+    '<button type="button" class="ms-apbtn big" data-mxview="1">Xem đơn hàng ›</button>';
 }
 // cập nhật thanh tiến độ và các ô số lượng mà không vẽ lại danh sách (giữ vị trí cuộn)
 function msUpdate() {
@@ -2490,7 +2498,8 @@ function msUpdate() {
     t.hidden = !has; t.textContent = open ? 'Ẩn danh sách sản phẩm ⌃' : 'Chọn thêm sản phẩm (' + msCur.members.size + ' loại) ⌄'; t.setAttribute('aria-expanded', String(open));
     $('msQ').hidden = !open; $('msList').hidden = !open; }
   const fr = mixResult(msCur);   // thanh đáy luôn thấy: tổng thanh toán của nhóm + nút dùng giá / xem đơn
-  $('msFoot').innerHTML = fr && fr.lines.length > 0 ? '<div class="mf-tot"><span>Khách trả · ' + fr.lines.reduce((a, l) => a + l.q, 0) + ' món' + (mixGiftRows(fr).length ? ' + ' + mixGiftRows(fr).reduce((a, g) => a + g.n, 0) + ' quà' : '') + '</span><b>' + fmt(fr.pay) + '</b></div>' + mixApplyHtml(msCur) : '';
+  const cmpFoot = !!fr && fr.kind !== 'p' && fr.lines.length >= 2 && mixOk(fr);   // đã có hai ô "Ghép đơn | Tính riêng" thì không lặp dòng tổng
+  $('msFoot').innerHTML = cmpFoot ? mixApplyHtml(msCur) : fr && fr.lines.length > 0 ? '<div class="mf-tot"><span>Khách trả · ' + fr.lines.reduce((a, l) => a + l.q, 0) + ' món' + (mixGiftRows(fr).length ? ' + ' + mixGiftRows(fr).reduce((a, g) => a + g.n, 0) + ' quà' : '') + '</span><b>' + fmt(fr.pay) + '</b></div>' + mixApplyHtml(msCur) : '';
   document.querySelectorAll('#msList .msrow').forEach(r => {
     const w = +r.dataset.w, n = qtyOf[w] || 0, inp = r.querySelector('input');
     if (document.activeElement !== inp) inp.value = n;
