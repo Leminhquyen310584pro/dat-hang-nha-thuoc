@@ -855,6 +855,40 @@ body{font-feature-settings:"tnum" 0}
 .pxb .pb-more>summary{text-align:center;text-decoration:underline;text-underline-offset:3px;min-height:40px}
 .pxb .orig{margin-top:4px}
 
+/* ===== Ngăn Đơn hỗn hợp: một bảng gọn (ý 4, 26/11/2026) ===== */
+.mt-st{padding:2px 0 4px}
+.mt-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.mt-h b{font-size:14px;color:var(--warn)}
+.mt-st.ok .mt-h b{color:var(--quy-ink)}
+.mt-h span{font-size:12.5px;color:var(--muted)}
+.mt-bar{height:9px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0 4px}
+.mt-bar i{display:block;height:100%;background:var(--warn)}
+.mt-st.ok .mt-bar i{background:var(--quy)}
+.mt-hint{font-size:12.5px;color:var(--muted)}
+.mt-tb{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+.mt-tb th{background:var(--primary);color:var(--primary-ink);font-size:11.5px;font-weight:700;text-align:left;padding:7px 8px}
+.mt-tb th:first-child{border-radius:8px 0 0 8px}
+.mt-tb th:last-child{border-radius:0 8px 8px 0}
+.mt-tb td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.mt-tb .c{text-align:center;width:34px}
+.mt-tb .r{text-align:right;white-space:nowrap}
+.mt-tb small{font-size:11.5px;color:var(--muted);font-weight:500}
+.mt-tb tr.rs-gift td{background:var(--quy-soft);color:var(--quy-ink)}
+.mt-tb tr.rs-gift small{color:var(--quy-ink)}
+.mt-tb tr.rs-pick td{padding-top:6px}
+.rs-ck{font-size:13px;color:var(--dbt-ink);padding:2px 0}
+.rs-ck.q{color:var(--quy-ink)}
+.ms-toggle{display:block;width:100%;min-height:44px;margin:6px 0;border:0;background:none;color:var(--primary);font-family:inherit;font-size:13.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.ms-toggle[hidden],#msList[hidden],#msQ[hidden]{display:none}
+.mt-tb{table-layout:fixed}
+.mt-tb tr.rs-line,.mt-tb tr.rs-gift,.mt-tb tr.rs-pick{display:table-row;margin:0;padding:0;border:0;border-radius:0;background:none}
+.mt-tb th,.mt-tb td{display:table-cell;overflow-wrap:anywhere}
+.mt-tb th.c,.mt-tb td.c{width:34px;padding-left:2px;padding-right:2px}
+.mt-tb th.r,.mt-tb td.r{width:104px;padding-left:2px}
+.mt-tb th.c,.mt-tb th.r{text-align:center}
+.mt-tb th.r{text-align:right}
+#mixSheet .osheet-head .ghost{white-space:nowrap;flex:none}
+
 </style>
 </head>
 <body>
@@ -926,12 +960,14 @@ body{font-feature-settings:"tnum" 0}
 <section class="osheet msheet" id="mixSheet" role="dialog" aria-label="Đặt đơn hỗn hợp" hidden>
   <div class="osheet-card">
     <div class="osheet-head"><h2 id="msTitle"></h2><button class="ghost" id="msClose" type="button">← Quay lại</button></div>
-    <p class="osheet-hint">Chọn nhóm, rồi nhập số lượng sản phẩm. Tiền hàng của nhóm cộng lại để đủ mốc.</p>
+    <p class="osheet-hint" id="msHint"></p>
     <div id="msPick" class="ms-pick"></div>
     <div id="msStrip" class="ms-strip"></div>
     <div id="msRes"></div>
+    <button type="button" id="msToggle" class="ms-toggle" hidden></button>
     <input id="msQ" class="ms-q" type="search" placeholder="Tìm sản phẩm trong nhóm…" autocomplete="off" aria-label="Tìm trong nhóm">
     <div id="msList" class="mslist"></div>
+    <div id="msCond"></div>
     <div id="msFoot" class="ms-foot"></div>
   </div>
 </section>
@@ -1256,7 +1292,7 @@ function card(d) {
   if (nSp) detail += '<div>CTKM đặc biệt: ' + esc(sp.map(p => p.title).concat(pinfoOf(d.w).map(x => x.prog)).join(' · ')) + ' (giá xem ở trang Tính giá)</div>';
   // điều kiện nguyên văn của công ty (cột D bảng giá), để xem đủ các luật kể cả khi trang chỉ tính một luật
   const rules = rulesOf(d);
-  if (rules.length) detail += '<div class="rules"><b>Điều kiện của công ty</b>' + rules.map(r => '<div>• ' + esc(r) + '</div>').join('') + '</div>';
+  if (rules.length) detail += '<div class="rules"><b>Điều kiện chương trình</b>' + rules.map(r => '<div>• ' + esc(r) + '</div>').join('') + '</div>';
   if (!detail) detail = '<div>Không có khuyến mãi</div>';
   const spec = d.q && d.q !== '—' ? esc(d.q) : '';   // quy cách (chai 400ml, tuýp 50g…); không có thì bỏ dòng, giá đã nằm bên phải
   return '<article class="card' + (n > 0 ? ' in' : '') + (popen.has(d.w) ? ' po' : '') + '" data-w="' + d.w + '">' +
@@ -1593,7 +1629,7 @@ function subFor(d, key, cond) { return allSubs().find(x => x.prog === key && x.m
 /* ---- Ý 2 accordion (người dùng chọn 24/11/2026): mỗi luật / chương trình là một thẻ; chỉ thẻ đang chọn mở đầy đủ, thẻ còn lại thu thành một dòng tóm tắt. Điều kiện nguyên văn của công ty luôn hiện ở cuối thẻ đang mở. */
 function rulesOf(d) { return String(d.d || '').split(/\n+/).map(s => s.replace(/^\s*[*•]\s*/, '').replace(/\s*Ò\s*/g, ' => ').trim()).filter(Boolean); }
 const isGrpRule = r => /bất kỳ|kết hợp|các sản phẩm|dòng /i.test(r);
-const origBox = (lines, extra) => lines.length || extra ? '<div class="orig"><b>Điều kiện của công ty</b>' + lines.map(r => '<p>' + esc(r.replace(/\s*=\s*=>\s*|\s*=>\s*/g, ' ⇒ ')) + '</p>').join('') + (extra || '') + '</div>' : '';
+const origBox = (lines, extra) => lines.length || extra ? '<div class="orig"><b>Điều kiện chương trình</b>' + lines.map(r => '<p>' + esc(r.replace(/\s*=\s*=>\s*|\s*=>\s*/g, ' ⇒ ')) + '</p>').join('') + (extra || '') + '</div>' : '';
 function accWrap(d, tab, id, kind, title, chip, summary, body, firstId) {
   const k = d.w + '|' + tab, sel = accSel[k] === undefined ? firstId : accSel[k], open = sel === id;
   return '<div class="acc ' + kind + (open ? ' open' : '') + '" data-acc-id="' + id + '"><button type="button" class="acc-h" data-acc="' + d.w + '|' + tab + '|' + id + '" aria-expanded="' + open + '"><span class="acc-t">' + title + '</span>' +
@@ -1616,7 +1652,7 @@ function groupBlock(d, sb) {
     '<button type="button" class="px-mix" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '">Trộn sản phẩm khác ›</button></div></div>';
 }
 /* ---- Mẫu B (người dùng chọn 26/11/2026): thẻ chương trình đặc biệt CÓ GIÁ = giá niêm yết cạnh giá khi đủ mức, một khung "trả / nhận / quà", rồi "Chọn cách đặt":
-   "Một loại này" (+N) và "Ghép nhiều loại" (mở Đơn hỗn hợp), mức lớn hơn gấp trong "Mua nhiều hơn". Điều kiện của công ty giữ nguyên. ---- */
+   "Một loại này" (+N) và "Ghép nhiều loại" (mở Đơn hỗn hợp), mức lớn hơn gấp trong "Mua nhiều hơn". Điều kiện chương trình giữ nguyên. ---- */
 function specPartHtml(d, t) {
   const u = d.u || 'sp';
   let m;
@@ -1652,12 +1688,12 @@ function progCard(o) {
     const tags = (o.stack ? '' : '<i class="pb no">KHÔNG cộng CTKM quý</i>') + (o.v.sb && o.cum ? '<i class="pb">Cộng nhiều đơn</i>' : '');
     return '<div class="thr dbt px pxb' + (o.best ? ' px-best' : '') + '"><div class="px-h thr-m"><b>' + esc(o.title) + '</b>' + (o.best ? '<i class="pb best">Rẻ nhất</i>' : '') + expText(o.e).replace('· hết', 'Hết') + '</div>' +
       (tags ? '<div class="px-b">' + tags + '</div>' : '') + specBodyHtml(o.v) +
-      '<div class="px-c orig"><b>Điều kiện của công ty</b><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></div></div>';
+      '<div class="px-c orig"><b>Điều kiện chương trình</b><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></div></div>';
   }
   const badges = (o.stack ? '<i class="pb ok">Cộng CTKM quý</i>' : '<i class="pb no">KHÔNG cộng CTKM quý</i>') + (o.group ? (o.cum ? '<i class="pb">Cộng dồn</i>' : '<i class="pb">Phải đủ trong 1 đơn</i>') : '');
   return '<div class="thr dbt px' + (o.best ? ' px-best' : '') + '"><div class="px-h thr-m"><b>' + esc(o.title) + '</b>' + (o.best ? '<i class="pb best">Rẻ nhất</i>' : '') + expText(o.e) + '</div>' +
     '<div class="px-b">' + badges + '</div>' + (o.warn || '') + (o.group || '') + (o.box || '') + (o.act || '') +
-    '<div class="px-c orig"><b>Điều kiện của công ty</b><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></div></div>';
+    '<div class="px-c orig"><b>Điều kiện chương trình</b><div class="thr-c">' + esc(o.full || '') + '</div><div class="thr-f"><span class="thr-note">' + o.note + '</span></div></div></div>';
 }
 const chipsFold = act => act ? '<details class="px-r"><summary>Đặt riêng sản phẩm này</summary>' + act + '</details>' : '';
 function stackCards(items, d) {
@@ -2210,47 +2246,71 @@ function mixProgResult(sub, usedWs) {
   const warnAny = warn || (lines.some(l => l.miss) ? 'Thiếu giá quà chéo của quà quý' : null);
   return { kind: 'd', ok, suat, ck, giftN, giftLabel, lines, qcards: rq ? rq.cards.filter(c => c.ok) : [], gross: lines.reduce((a, l) => a + l.gross, 0), pay: lines.reduce((a, l) => a + l.L, 0), warn: warnAny, T };
 }
-// Khối kết quả trong ngăn đặt đơn hỗn hợp
+// Khối kết quả trong ngăn đặt đơn hỗn hợp: "một bảng gọn" (ý 4, người dùng chọn 26/11/2026): bảng Sản phẩm | SL | Giá cuối, dòng quà, rồi tiền hàng và CK
+function mixGiftRows(r) {
+  const out = [];
+  const own = l => { if (l.N > 0 && l.og) out.push({ n: l.N, name: l.og.ty === 's' ? shortName(l.d) : giftName(l.og.l), note: l.og.ty === 's' ? 'cùng loại' : '' }); };
+  if (r.kind === 'p') {
+    if (r.ok && r.giftN > 0) out.push({ n: r.giftN, name: r.giftLabel, note: 'không tính vào giá' + (r.max ? ' · tối đa ' + r.max + ' set mỗi khách' : '') + (r.cum ? ' · cộng dồn: các đơn khác cộng vào' : ' · phải đủ trong 1 đơn') });
+    r.lines.forEach(l => { if (l.N > 0) out.push({ n: l.N, name: l.qtyO > 0 ? shortName(l.d) : giftName(l.giftName || ''), note: 'CTKM quý' }); });
+  } else if (r.kind === 'q') {
+    r.cards.filter(c => c.ok && c.giftN > 0 && c.opt).forEach(c => out.push({ n: c.giftN, name: giftName(c.opt.label), card: c }));
+    r.lines.forEach(own);
+  } else {
+    if (r.ok && r.giftN > 0) out.push({ n: r.giftN, name: r.giftLabel, note: 'CTKM đặc biệt' });
+    (r.qcards || []).forEach(c => { if (c.giftN > 0 && c.opt) out.push({ n: c.giftN, name: giftName(c.opt.label), note: 'CTKM quý (cộng thêm)', card: c }); });
+    r.lines.forEach(own);
+  }
+  return out;
+}
 function mixResultHtml(sub) {
   const r = mixResult(sub);
   if (!r) return '';   // chưa chọn sản phẩm nào: không hiện gì (danh sách sản phẩm ngay bên dưới)
-  const rows = [];
+  const gifts = mixGiftRows(r);
+  const body = r.lines.map(l => '<tr class="rs-line"><td>' + esc(shortName(l.d)) + (l.qtyO > 0 ? ' <small>+ tặng ' + l.qtyO + '</small>' : '') + '</td><td class="c">' + l.q + '</td><td class="r"><b>' + (l.P != null ? fmt(l.P) : '—') + '</b><small>/' + esc(pUnit(l.d)) + '</small></td></tr>').join('') +
+    gifts.map(g => {
+      const opts = g.card ? (g.card.r.opts || []) : [];
+      return '<tr class="rs-gift"><td><b>Tặng ' + g.n + ' ' + esc(g.name) + '</b>' + (g.note ? ' <small>· ' + esc(g.note) + '</small>' : '') + '</td><td class="c">+' + g.n + '</td><td class="r">quà</td></tr>' +
+        (opts.length > 1 ? '<tr class="rs-pick"><td colspan="3"><small>Đổi quà:</small><div class="rs-opts">' + opts.map(o => '<button type="button" class="rs-opt' + (o.gi === g.card.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(g.card.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div></td></tr>' : '');
+    }).join('');
+  const rows = ['<table class="mt-tb"><thead><tr><th>Sản phẩm</th><th class="c">SL</th><th class="r">Giá cuối</th></tr></thead><tbody>' + body + '</tbody></table>'];
   rows.push('<div class="rs-row"><span>Tiền hàng</span><b>' + fmt(r.gross) + '</b></div>');
-  let gifts = '';
-  if (r.kind === 'p') {
-    if (r.ok) gifts += '<div class="rs-gift"><b>✓ Tặng ' + r.giftN + ' ' + esc(r.giftLabel) + '</b> <small>(không tính vào giá' + (r.max ? ' · tối đa ' + r.max + ' set mỗi khách' : '') + (r.cum ? ' · cộng dồn: các đơn khác cộng vào' : ' · phải đủ trong 1 đơn') + ')</small></div>';
-    else if (r.reqMiss) gifts += '<div class="rs-gift" style="color:var(--bad)"><b>⚠ Đủ mốc tiền nhưng thiếu điều kiện bắt buộc: ' + esc(r.reqMiss) + '</b></div>';
-    else gifts += '<div class="rs-none">Chưa đủ mốc: chưa được tặng ' + esc(r.giftLabel) + '.</div>';
-    gifts += '<div class="rs-none" style="margin-top:2px">Quà không quy ra tiền nên giá từng sản phẩm không đổi (giữ giá CTKM quý của sản phẩm).</div>';
-  } else if (r.kind === 'q') {
-    r.cards.filter(c => c.ok && c.giftN > 0 && c.opt).forEach(c => {
-      const names = (c.r.opts || []);
-      gifts += '<div class="rs-gift"><b>✓ Tặng ' + c.giftN + ' ' + esc(giftName(c.opt.label)) + '</b>' + (c.price > 0 ? ' <small>(giá quà ' + fmt(c.price) + '/cái, trừ vào giá từng sản phẩm)</small>' : '') +
-        (names.length > 1 ? '<div class="rs-opts">' + names.map(o => '<button type="button" class="rs-opt' + (o.gi === c.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(c.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div>' : '') + '</div>';
-    });
-    r.lines.filter(l => l.N > 0 && l.og && !r.cards.some(c => c.ws.includes(l.d.w))).forEach(l => { gifts += '<div class="rs-gift"><b>✓ Tặng ' + l.N + ' ' + esc(l.og.ty === 's' ? shortName(l.d) : giftName(l.og.l)) + '</b> <small>(' + (l.og.ty === 's' ? 'cùng loại' : 'quà riêng') + ' của ' + esc(shortName(l.d)) + ')</small></div>'; });
-    r.cards.filter(c => c.excl).forEach(c => { gifts += '<div class="rs-gift" style="color:var(--muted)"><small>' + esc(c.r.name) + ': không áp dụng đồng thời với luật 550.000đ Sunplay (suất 550k chỉ nhận quà của suất này)</small></div>'; });
-    r.cards.filter(c => c.ok && c.ck > 0).forEach(c => { gifts += '<div class="rs-gift"><b>✓ CK ' + +(c.ck * 100).toFixed(2) + '%</b> <small>theo ' + esc(c.r.name) + '</small></div>'; });
-  } else {
-    if (r.ok && r.giftN > 0) gifts += '<div class="rs-gift"><b>✓ Tặng ' + r.giftN + ' ' + esc(r.giftLabel) + '</b> <small>(trừ vào giá từng sản phẩm)</small></div>';
-    if (r.ok && r.ck > 0) gifts += '<div class="rs-gift"><b>✓ CK đặc biệt ' + +(r.ck * 100).toFixed(2) + '%</b></div>';
-    (r.qcards || []).forEach(c => {
-      if (c.giftN > 0 && c.opt) {
-        const names = c.r.opts || [];
-        gifts += '<div class="rs-gift"><b>✓ CTKM quý (cộng thêm): tặng ' + c.giftN + ' ' + esc(giftName(c.opt.label)) + '</b>' + (c.price > 0 ? ' <small>(giá quà ' + fmt(c.price) + '/cái, trừ vào giá từng sản phẩm)</small>' : '') +
-          (names.length > 1 ? '<div class="rs-opts">' + names.map(o => '<button type="button" class="rs-opt' + (o.gi === c.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(c.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div>' : '') + '</div>';
-      }
-      if (c.ck > 0) gifts += '<div class="rs-gift"><b>✓ CK quý ' + +(c.ck * 100).toFixed(2) + '%</b> <small>theo ' + esc(c.r.name) + '</small></div>';
-    });
+  const notes = [];
+  if (r.kind === 'd' && r.ok && r.ck > 0) notes.push('<div class="rs-ck">Đã trừ CK đặc biệt ' + +(r.ck * 100).toFixed(2) + '% (' + fmt(r.pay / (1 - r.ck) - r.pay) + ')</div>');
+  if (r.kind === 'd') (r.qcards || []).filter(c => c.ck > 0).forEach(c => notes.push('<div class="rs-ck q">Đã trừ CK quý ' + +(c.ck * 100).toFixed(2) + '% (' + esc(c.r.name) + ')</div>'));
+  if (r.kind === 'q') {
+    r.cards.filter(c => c.ok && c.ck > 0).forEach(c => notes.push('<div class="rs-ck q">Đã trừ CK ' + +(c.ck * 100).toFixed(2) + '% theo ' + esc(c.r.name) + '</div>'));
+    r.cards.filter(c => c.excl).forEach(c => notes.push('<div class="rs-none">' + esc(c.r.name) + ': không áp dụng đồng thời với luật 550.000đ Sunplay (suất 550k chỉ nhận quà của suất này)</div>'));
   }
-  if (!gifts) gifts = '<div class="rs-none">Chưa đủ mốc: giá từng sản phẩm chưa có ưu đãi của nhóm.</div>';
-  rows.push(gifts);
-  const lineHtml = r.lines.map(l => '<div class="rs-line"><span>' + esc(shortName(l.d)) + ' · ' + l.q + ' ' + esc(l.d.u || 'sp') + (l.qtyO > 0 ? ' + tặng ' + l.qtyO : '') + '</span><b>' + (l.P != null ? fmt(l.P) + '/' + esc(pUnit(l.d)) : '—') + '</b></div>').join('');
-  rows.push('<div class="rs-lines"><div class="rs-lh">Giá cuối cùng từng sản phẩm</div>' + lineHtml + '</div>');
+  if (r.kind === 'p') {
+    if (r.reqMiss) notes.push('<div class="rs-warn">⚠ Đủ mốc tiền nhưng thiếu điều kiện bắt buộc: ' + esc(r.reqMiss) + '</div>');
+    else if (!r.ok) notes.push('<div class="rs-none">Chưa đủ mốc: chưa được tặng ' + esc(r.giftLabel) + '.</div>');
+    notes.push('<div class="rs-none">Quà không quy ra tiền nên giá từng sản phẩm không đổi (giữ giá CTKM quý của sản phẩm).</div>');
+  } else if (!gifts.length && !notes.length) notes.push('<div class="rs-none">Chưa đủ mốc: giá từng sản phẩm chưa có ưu đãi của nhóm.</div>');
+  rows.push(notes.join(''));
   if (r.warn) rows.push('<div class="rs-warn">⚠ ' + esc(r.warn) + ': chưa tính được giá cuối.</div>');
-  rows.push('<div class="rs-total"><span>Tổng thanh toán (sau CK hóa đơn 1%' + (r.kind === 'q' ? '' : (r.kind === 'p' ? ' và CTKM quý của từng sản phẩm' : ' và CK nhóm')) + ')</span><b>' + fmt(r.pay) + '</b></div>');
   return '<div class="ms-res">' + rows.join('') + '</div>';
 }
+// Dòng trạng thái đầu ngăn: đủ / chưa đủ mốc, thanh, và câu "thêm bao nhiêu nữa thì được gì" (chỉ nói khi mua thêm THẬT SỰ được thêm: CK % không nhân theo suất)
+function mixStatusHtml(sub) {
+  const st = subStat(sub), r = mixResult(sub);
+  let hint = '';
+  if (st.up) hint = 'Đơn đã lên mốc ' + fmt(st.up) + ': nhận kem, không tính mốc ' + fmt(sub.thr);
+  else if (!st.ok) hint = 'Còn thiếu <b>' + esc(fmtMix(sub, st.rest)) + '</b>';
+  else if (r) {
+    const more = 'Thêm <b>' + esc(fmtMix(sub, st.rest)) + '</b> nữa được thêm quà';
+    if (r.kind === 'p') hint = r.max && st.k >= r.max ? 'Đã đạt tối đa ' + r.max + ' set' : more;
+    else if (r.kind === 'q') hint = r.cards.some(c => c.opt) ? more : '';
+    else if (r.giftN > 0) hint = more;
+    else { const c = (r.qcards || []).find(x => x.opt && x.r.tk === 'money'); if (c) hint = 'Thêm <b>' + fmt((Math.floor(c.total / c.r.thr + 1e-9) + 1) * c.r.thr - c.total) + '</b> nữa được tặng thêm ' + c.opt.n + ' (CTKM quý)'; }
+  }
+  let warn = '';
+  if (st.ok && sub.req && !DATA.some(d => (qtyOf[d.w] || 0) > 0 && norm(d.t).includes(norm(sub.req.replace(/^1\s*/, ''))))) warn = '<div class="rs-warn">⚠ Nhớ điều kiện bắt buộc: ' + esc(sub.req) + '</div>';
+  return '<div class="mt-st' + (st.ok ? ' ok' : '') + '"><div class="mt-h"><b>' + (st.ok ? '✓ Đủ mốc' + (st.k > 1 ? ' · ' + st.k + ' suất' : '') : 'Chưa đủ mốc') + '</b><span>' + esc(fmtMix(sub, st.t)) + ' / ' + esc(fmtMix(sub, sub.thr)) + '</span></div>' +
+    '<div class="mt-bar"><i style="width:' + (st.ok ? 100 : st.pct) + '%"></i></div>' + (hint ? '<div class="mt-hint">' + hint + '</div>' : '') + warn + '</div>';
+}
+const mixCondHtml = s => s.cond ? '<div class="mx-cond ' + (s.kind === 'q' ? 'q' : 'd') + '"><b>Điều kiện chương trình</b>' + esc(String(s.full || s.cond).replace(/[ \t]+/g, ' ').trim()) + '</div>' : '';
+let msListOpen = true;   // danh sách chọn sản phẩm: mở khi nhóm chưa có hàng, gấp sau nút "Chọn thêm sản phẩm" khi đã có
 
 // ---- BƯỚC 3: đơn hỗn hợp vào phiếu Đơn hàng và tin nhắn gửi Zalo
 // Anh bấm "Dùng giá đơn hỗn hợp này" trong ngăn thì các sản phẩm của nhóm dùng giá đơn hỗn hợp (quà, CK chung, giá chia theo tiền) thay cho giá riêng từng dòng.
@@ -2336,6 +2396,7 @@ function openMixSheet(id, scope, title) {
 function selectMsGroup(s) {
   msCur = s;
   $('msQ').value = '';
+  msListOpen = !mixResult(s);
   const ds = [...s.members].map(w => DW[w]).filter(Boolean).sort((a, b) => brandLabel(a).localeCompare(brandLabel(b), 'vi') || shortName(a).localeCompare(shortName(b), 'vi'));
   $('msList').innerHTML = ds.map(d => '<div class="msrow" data-w="' + d.w + '" data-k="' + esc(norm(d.t + ' ' + brandLabel(d))) + '"><div class="ms-n"><b>' + esc(shortName(d)) + '</b><small>' + esc(brandLabel(d)) + ' · ' + fmt(d.c) + ' /' + esc(d.u || 'sp') + '</small></div>' +
     '<div class="stepper" role="group"><button type="button" data-msd="' + d.w + '" aria-label="Giảm">−</button><input type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Số lượng ' + esc(shortName(d)) + '"><button type="button" data-msi="' + d.w + '" aria-label="Tăng">+</button></div></div>').join('');
@@ -2358,7 +2419,7 @@ function mixApplyHtml(s) {
   if (res.lines.length < 2) return '<div class="ms-apply off">Thêm 1 sản phẩm nữa của nhóm để dùng giá đơn hỗn hợp.</div><button type="button" class="ms-apbtn big" data-mxfocus="1">+ Chọn thêm sản phẩm</button>';
   if (!okGrp) return '<div class="ms-apply off">Chưa đủ mốc: phiếu vẫn tính giá riêng từng sản phẩm.</div>';
   if (conflict) return '<div class="ms-apply off">Có sản phẩm đang thuộc một nhóm đơn hỗn hợp khác. Bỏ nhóm kia trước.</div>';
-  return '<button type="button" class="ms-apbtn big" data-mxon="' + esc(s.id) + '">Dùng giá đơn hỗn hợp này cho phiếu Đơn hàng</button>';
+  return '<button type="button" class="ms-apbtn big" data-mxon="' + esc(s.id) + '">Dùng giá này cho Đơn hàng</button>';
 }
 // cập nhật thanh tiến độ và các ô số lượng mà không vẽ lại danh sách (giữ vị trí cuộn)
 function msUpdate() {
@@ -2366,7 +2427,7 @@ function msUpdate() {
   if (msScope.length > 1) {   // chọn nhóm ngay trong ngăn: mỗi nhóm một dòng, nhóm đang chọn mở chi tiết ngay dưới
     const gs = msScope.map(id => allSubs().find(x => x.id === id)).filter(Boolean);
     const rowOf = (g, st, on) => '<button type="button" class="mp-row' + (on ? ' on' : '') + (st.ok ? ' ok' : '') + '" data-mxs="' + esc(g.id) + '" aria-pressed="' + on + '"><span class="mp-n"><i class="mxtag ' + (g.kind === 'q' ? 'q' : 'd') + '">' + (g.kind === 'q' ? 'Quý' : 'Đặc biệt') + '</i>' + esc(mixHead(g).full) + '</span><em>' + (st.ok ? '✓ đủ' : (st.up ? '→ mốc ' + fmt(st.up) : 'thiếu ' + fmtMix(g, st.rest))) + '</em></button>';
-    const detail = '<div class="mx-list mp-det">' + mixRow(msCur, subStat(msCur), false, true, true) + '</div>';
+    const detail = '';
     if (!msPickOpen) {   // gọn: chỉ nhóm đang chọn + điều kiện, danh sách sản phẩm nằm ngay bên dưới
       $('msPick').innerHTML = rowOf(msCur, subStat(msCur), true) + detail +
         '<button type="button" class="mp-change" data-mxpg="1">Đổi nhóm (' + (gs.length - 1) + ' nhóm khác) ▾</button>';
@@ -2374,14 +2435,16 @@ function msUpdate() {
       $('msPick').innerHTML = gs.map(g => rowOf(g, subStat(g), g === msCur) + (g === msCur ? detail : '')).join('') +
         '<button type="button" class="mp-change" data-mxpg="1">Thu gọn ▴</button>';
     }
-    $('msStrip').innerHTML = '';
-  } else {
-    $('msPick').innerHTML = '';
-    $('msStrip').innerHTML = '<div class="mx-list">' + mixRow(msCur, subStat(msCur), false, true) + '</div>';
-  }
+  } else $('msPick').innerHTML = '';
+  $('msStrip').innerHTML = mixStatusHtml(msCur);
   $('msRes').innerHTML = mixResultHtml(msCur);
+  $('msCond').innerHTML = mixCondHtml(msCur);
+  $('msHint').textContent = msCur.kind === 'q' ? 'CTKM quý · tiền hàng của nhóm cộng lại để đủ mốc' : 'CTKM đặc biệt · ' + (msCur.stack ? 'cộng CTKM quý' : 'KHÔNG cộng CTKM quý') + (msCur.cum ? ' · cộng dồn nhiều đơn' : '');
+  { const has = !!mixResult(msCur), open = msListOpen || !has, t = $('msToggle');
+    t.hidden = !has; t.textContent = open ? 'Ẩn danh sách sản phẩm ⌃' : 'Chọn thêm sản phẩm (' + msCur.members.size + ' loại) ⌄'; t.setAttribute('aria-expanded', String(open));
+    $('msQ').hidden = !open; $('msList').hidden = !open; }
   const fr = mixResult(msCur);   // thanh đáy luôn thấy: tổng thanh toán của nhóm + nút dùng giá / xem đơn
-  $('msFoot').innerHTML = fr && fr.lines.length > 0 ? '<div class="mf-tot"><span>Tổng thanh toán · ' + fr.lines.length + ' sản phẩm</span><b>' + fmt(fr.pay) + '</b></div>' + mixApplyHtml(msCur) : '';
+  $('msFoot').innerHTML = fr && fr.lines.length > 0 ? '<div class="mf-tot"><span>Khách trả · ' + fr.lines.reduce((a, l) => a + l.q, 0) + ' món' + (mixGiftRows(fr).length ? ' + ' + mixGiftRows(fr).reduce((a, g) => a + g.n, 0) + ' quà' : '') + '</span><b>' + fmt(fr.pay) + '</b></div>' + mixApplyHtml(msCur) : '';
   document.querySelectorAll('#msList .msrow').forEach(r => {
     const w = +r.dataset.w, n = qtyOf[w] || 0, inp = r.querySelector('input');
     if (document.activeElement !== inp) inp.value = n;
@@ -2721,7 +2784,8 @@ document.addEventListener('click', e => {
   if (b.dataset.mxb !== undefined) { const ids = (mixScope[b.dataset.mxb] || []); if (ids.length) openMixSheet(ids[0], ids, b.dataset.mxb); return; }
   if (b.dataset.mxview !== undefined) { closeMixSheet(); openSheet(true); return; }
   if (b.dataset.mxpg !== undefined) { msPickOpen = !msPickOpen; msUpdate(); return; }
-  if (b.dataset.mxfocus !== undefined) { const q = $('msQ'); if (q) q.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if (b.id === 'msToggle') { msListOpen = $('msList').hidden; msUpdate(); return; }
+  if (b.dataset.mxfocus !== undefined) { msListOpen = true; msUpdate(); const q = $('msQ'); if (q) q.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (b.dataset.mxs !== undefined) { const g = allSubs().find(x => x.id === b.dataset.mxs); msPickOpen = false; if (g && g !== msCur) selectMsGroup(g); else msUpdate(); return; }
   if (b.dataset.msd !== undefined || b.dataset.msi !== undefined) {   // − / + trong ngăn đặt đơn hỗn hợp
     const w = +(b.dataset.msd !== undefined ? b.dataset.msd : b.dataset.msi);
