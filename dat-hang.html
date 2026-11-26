@@ -903,6 +903,40 @@ body{font-feature-settings:"tnum" 0}
 .mf-way.on{border-color:var(--quy);background:var(--quy-soft);cursor:default}
 .mf-cmp{font-size:12.5px;color:var(--muted);text-align:center;margin-top:5px}
 
+/* ===== Ý 1 (26/11/2026): một khung giá đã gộp CTKM quý và đặc biệt ===== */
+.cmini.big{position:relative;flex-direction:column;align-items:stretch;background:none;padding:0;gap:0}
+.cmini.big .cm-t{width:100%}
+.bc{background:#0B7F6A;color:#fff;border-radius:16px;padding:14px 14px 12px}
+.bc-k{font-size:12px;font-weight:700;opacity:.88}
+.bc-p{font-size:34px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.bc-p small{font-size:14px;font-weight:600}
+.bc-s{font-size:13px;opacity:.93}
+.bc-g{margin-top:10px;background:#fff;border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:700;line-height:1.45}
+.bc-g .q{color:#0B6B46}
+.bc-g .s{color:#9D1542}
+.bc-f{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;font-size:13px}
+.bc-f b{font-size:20px}
+.cmini.big .cm-b{align-self:center;margin-top:4px;min-height:40px;background:none}
+.cmini.big .cm-x{position:absolute;top:8px;right:8px;width:34px;height:34px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff}
+.cmini.big + .cfw .cfinal>.fb:not(.muted),.cmini.big + .cfw .fb-x{display:none}
+.cmini.big + .cfw .cfinal{background:none;padding-top:0}
+/* hàng "Quý · Đặc biệt · Thông tin sản phẩm": ba nút đều nhau, căn giữa */
+.pline{display:flex;gap:8px;width:calc(100% - 24px);margin:8px 12px 4px;padding:0}
+.pline .pl{flex:1 1 0;justify-content:center;min-height:40px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);white-space:nowrap;padding:0 8px}
+.pline .pl.i{flex:1.9 1 0}
+.pline .pl.i::after{content:"›";font-size:16px;color:var(--muted)}
+.pline>i{display:none}
+.card{min-width:0}
+.pline{gap:6px;width:auto;margin:8px 10px 6px;max-width:100%}
+.pline .pl{flex:1 1 0;min-width:0;padding:0 4px;gap:5px;font-size:12px;overflow:hidden}
+.pline .pl.i{flex:2.1 1 0}
+.pline .pl::before{flex:none;width:8px;height:8px}
+.pline .pl.q{flex:.7 1 0}
+.pline .pl.s{flex:1.05 1 0}
+.pline .pl.i{flex:1.75 1 0;font-size:11.5px}
+.pline .pl.i::before,.pline .pl.i::after{display:none}
+.card .pline{width:calc(100% - 24px);margin:8px 12px 10px;box-sizing:border-box}
+
 </style>
 </head>
 <body>
@@ -1322,7 +1356,7 @@ function card(d) {
     cfBlock(d, n) +
     /* Ý 1 (người dùng chọn 19/11/2026): mỗi thẻ chỉ một dòng nhỏ "● Quý · ● 2 đặc biệt ›"; chi tiết khuyến mãi nằm trong ngăn trượt từ dưới lên (cùng nội dung cũ, chỉ đổi cách hiển thị) */
     (badges.length ? '<button type="button" class="pline" data-popen="' + d.w + '"' + (popen.has(d.w) ? ' aria-expanded="true"' : '') + '>' +
-      (kindQ ? '<span class="pl q">Quý</span>' : (d.h > 0 ? '<span class="pl q">CK quý</span>' : '')) + (nSp ? '<span class="pl s">' + (nSp > 1 ? nSp + ' ' : '') + 'đặc biệt</span>' : '') + (info ? '<span class="pl i">Thông tin sản phẩm</span>' : '') + '<i aria-hidden="true">›</i></button>' : '') +
+      (kindQ ? '<span class="pl q">Quý</span>' : (d.h > 0 ? '<span class="pl q">CK quý</span>' : '')) + (nSp ? '<span class="pl s">' + (nSp > 1 ? nSp + ' đặc biệt' : 'Đặc biệt') + '</span>' : '') + (info ? '<span class="pl i">Thông tin sản phẩm</span>' : '') + '<i aria-hidden="true">›</i></button>' : '') +
     '<div class="psheet"><div class="ps-card"><div class="ps-h"><div class="ps-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + '</span></div><button type="button" class="ps-x" data-pclose="' + d.w + '" aria-label="Đóng">✕</button></div>' +
     (badges.length ? '<div class="ctabs' + (multi ? ' mt' : '') + '">' + badges.join('') + '</div>' : '') +
     (showQ ? thrLine(d, n) : '') + (showS ? specialLines(d) : '') + (showI ? infoBlock(info) : '') +
@@ -1435,7 +1469,7 @@ function cfBlock(d, n) {
   const full = finalLine(d, n);
   if (!full) return '';
   const open = cfOpen.has(d.w);
-  return '<div class="cmini"><div class="cm-t">' + finalMini + '</div>' +
+  return '<div class="cmini' + (finalMini.indexOf('class="bc"') >= 0 ? ' big' : '') + '"><div class="cm-t">' + finalMini + '</div>' +
     '<button type="button" class="cm-b" data-cfo="' + d.w + '" aria-expanded="' + open + '">' + (open ? 'Thu gọn ⌃' : 'Chi tiết ⌄') + '</button>' +
     '<button type="button" class="cm-x" data-rm="' + d.w + '" aria-label="Xóa số lượng ' + esc(shortName(d)) + '">×</button></div>' +
     '<div class="cfw"' + (open ? '' : ' hidden') + '>' + full + '</div>';
@@ -1475,9 +1509,9 @@ function finalLine(d0, n) {
   // CTKM đặc biệt có giá (CK, quà cùng loại/chéo): giá chưa tính ở trang này
   specialsOf(d.w).forEach(p => {
     const need = specNeed(d, p), nm = esc(p.lab || p.title);
-    if (both && p === both.p) rows.push('<div class="cf-row ok">✓ CTKM đặc biệt ' + nm + ': tặng ' + both.n + ' ' + esc(both.gift) + ' (đã tính vào giá)</div>');
+    if (both && p === both.p) rows.push('<div class="cf-row ok">✓ CTKM đặc biệt ' + nm + ': ' + esc(both.sp.join(' + ')) + ' (đã tính vào giá)</div>');
     else if (!need) rows.push('<div class="cf-row mute">CTKM đặc biệt ' + nm + ': giá xem ở trang Tính giá</div>');
-    else if (n >= need) rows.push('<div class="cf-row ok">✓ CTKM đặc biệt ' + nm + ': đủ mức (riêng sản phẩm này) · giá xem ở Tính giá</div>');
+    else if (n >= need) rows.push('<div class="cf-row mute">CTKM đặc biệt ' + nm + ': đủ mức, chưa cộng vào giá (' + (regOnly(p) ? 'chỉ cho khách đã đăng ký: chọn ở thẻ Đặc biệt' : !p.stack ? 'KHÔNG cộng CTKM quý: chọn ở thẻ Đặc biệt nếu muốn' : both ? 'đang dùng chương trình lợi hơn' : 'không lợi hơn CTKM quý') + ')</div>');
     else rows.push('<div class="cf-row mute">CTKM đặc biệt ' + nm + ': chưa đủ mức (còn thiếu ' + (need - n) + ' ' + u + ' riêng sản phẩm này)</div>');
   });
   // quà không quy ra tiền (mũ, túi Tote, cân, bình Oxy): không đổi giá
@@ -1513,23 +1547,21 @@ function finalLine(d0, n) {
   const pu = esc(pUnit(d)), M = d.m || 1;
   const priceTxt = canPrice ? fmt(r.P) + '<small> /' + pu + '</small>' : '';
   let head;
-  if (excl) {
+  if (excl && !both) {
     finalMini = '<div class="cm-p"><span class="cm-na">Xem giá ở trang Tính giá</span></div><div class="cm-s">' + n + ' ' + u + ' · đang theo CTKM đặc biệt (không cộng CTKM quý)</div>';
     head = '<div class="fb muted excl"><div class="fb-k">GIÁ CUỐI CÙNG</div><div class="fb-big"><span class="fb-na">Xem ở trang Tính giá</span></div>' +
       '<div class="fb-meta"><span>Đang tính theo CTKM đặc biệt "' + esc(prog) + '" (KHÔNG cộng CTKM quý)</span></div>' +
       '<div class="fb-ref">' + (canPrice ? 'Tham khảo theo CTKM quý: ' + fmt(r.P) + '/' + pu + ' · ' : '') + '<button type="button" class="linkbtn" data-resetprog="' + d.w + '">Tính theo CTKM quý</button></div></div>';
   } else if (both) {
     const lu = listUnit(d), sv = lu - both.P, pct = lu > 0 ? sv / lu * 100 : 0, pc = String(+pct.toFixed(1)).replace('.', ',');
-    const gl = (both.qN > 0 ? '<span class="cm-g q">Quý: tặng ' + both.qN + ' ' + esc(both.qName) + '</span>' : '') +
-      '<span class="cm-g s">Đặc biệt: tặng ' + both.n + ' ' + esc(both.gift) + '</span>';
-    const only = canPrice ? '<span class="cm-only">Chỉ tính CTKM quý: ' + fmt(r.P) + '/' + pu + '</span>' : '';
-    finalMini = '<div class="cm-p"><b>' + fmt(both.P) + '</b><small> /' + pu + '</small>' + (sv > 0.5 ? '<span class="cm-sv">−' + pc + '%</span>' : '') + '</div>' +
-      '<div class="cm-s">' + n + ' ' + u + ' · thanh toán <b>' + fmt(both.pay) + '</b></div>' + gl + only;
+    const sTxt = both.sp.map(t => /^CK /.test(t) && both.ckAmt > 0 ? esc(t) + ' (bớt ' + fmt(both.ckAmt) + ')' : esc(t)).join(' + ');
+    const qT = both.p.stack ? (both.swap ? (both.qN > 0 ? 'tặng ' + both.qN + ' ' + esc(both.qName) : '') : quyTxt(d, n, both.qN, both.qName)) : '';
+    finalMini = bigCard(d, n, both.P, both.pay, both.units, qT, sTxt, qT ? 'GIÁ CUỐI · ĐÃ GỒM CẢ 2 CTKM' : 'GIÁ CUỐI · THEO CTKM ĐẶC BIỆT');
     head = '<div class="fb"><div class="fb-k">GIÁ CUỐI CÙNG</div><div class="fb-big">' + fmt(both.P) + '<small> /' + pu + '</small></div>' +
       (sv > 0.5 ? '<div class="fb-old"><s>' + fmt(lu) + '</s><span class="fb-sv">Tiết kiệm ' + fmt(sv) + ' · ' + pc + '%</span></div>' : '') +
       '<div class="fb-meta"><span>' + n + ' ' + u + '</span>' + (both.qN > 0 ? '<span>Quý: + tặng ' + both.qN + ' ' + esc(both.qName) + '</span>' : '') +
-      '<span>Đặc biệt: + tặng ' + both.n + ' ' + esc(both.gift) + '</span><span>Thanh toán ' + fmt(both.pay) + '</span></div></div>';
-    if (spec && spec !== both.p) head += '<div class="cf-note">Đang đặt theo CTKM đặc biệt "' + esc(prog) + '": giá trên chưa tính thêm ưu đãi của chương trình này (xem ở trang Tính giá)</div>';
+      '<span>Đặc biệt: + ' + esc(both.sp.join(' + ')) + '</span><span>Thanh toán ' + fmt(both.pay) + '</span></div></div>';
+    if (spec && spec !== both.p) head += '<div class="cf-note">Đang đặt theo CTKM đặc biệt "' + esc(prog) + '": chương trình này chưa đủ mức hoặc kém lợi hơn nên giá đang theo "' + esc(both.name) + '".</div>';
   } else if (!canPrice) {
     const why = r.miss ? 'Thiếu giá quà ' + esc(r.giftName) : (r.warn ? esc(r.warn) : 'Chưa đủ dữ liệu');
     finalMini = '<div class="cm-p"><span class="cm-na">Chưa tính được</span></div><div class="cm-s">' + n + ' ' + u + ' · ' + why + '</div>';
@@ -1537,13 +1569,12 @@ function finalLine(d0, n) {
       '<div class="fb-meta"><span>' + n + ' ' + u + '</span><span>' + why + '</span></div></div>';
   } else {
     const lu = listUnit(d), sv = lu - r.P, pct = lu > 0 ? sv / lu * 100 : 0;
-    finalMini = '<div class="cm-p"><b>' + fmt(r.P) + '</b><small> /' + pu + '</small>' + (sv > 0.5 ? '<span class="cm-sv">−' + String(+pct.toFixed(1)).replace('.', ',') + '%</span>' : '') + '</div>' +
-      '<div class="cm-s">' + n + ' ' + u + (r.N > 0 ? ' + tặng ' + r.N + ' ' + esc(r.giftName) : '') + ' · thanh toán <b>' + fmt(r.pay) + '</b></div>';
+    { const qT = quyTxt(d, n, r.N, r.giftName); finalMini = bigCard(d, n, r.P, r.pay, r.units, qT, '', qT || sv > 0.5 ? 'GIÁ CUỐI · THEO CTKM QUÝ' : 'GIÁ CUỐI'); }
     head = '<div class="fb"><div class="fb-k">GIÁ CUỐI CÙNG</div>' +
       '<div class="fb-big">' + priceTxt + '</div>' +
       (sv > 0.5 ? '<div class="fb-old"><s>' + fmt(lu) + '</s><span class="fb-sv">Tiết kiệm ' + fmt(sv) + ' · ' + String(+pct.toFixed(1)).replace('.', ',') + '%</span></div>' : '') +
       '<div class="fb-meta"><span>' + n + ' ' + u + (M > 1 ? ' = ' + (n * M) + ' chai' : '') + '</span>' + (r.N > 0 ? '<span>+ tặng ' + r.N + ' ' + esc(r.giftName) + '</span>' : '') + '<span>Thanh toán ' + fmt(r.pay) + '</span></div></div>';
-    if (spec) head += '<div class="cf-note">Đang đặt theo CTKM đặc biệt "' + esc(prog) + '": giá trên chưa tính thêm ưu đãi của chương trình này (xem ở trang Tính giá)</div>';
+    if (spec) head += '<div class="cf-note">Đang đặt theo CTKM đặc biệt "' + esc(prog) + '": chưa đủ mức nên giá chưa gồm ưu đãi của chương trình này.</div>';
   }
   return '<div class="cfinal' + (excl ? ' excl' : '') + '"><button type="button" class="fb-x" data-rm="' + d.w + '" aria-label="Xóa số lượng ' + esc(shortName(d)) + '">× Xóa</button>' + head + (rows.length ? '<div class="cf-list"><b>Đơn này nhận được</b>' + rows.join('') + '</div>' : '') + '</div>';
 }
@@ -1574,22 +1605,47 @@ function expText(iso) {
 /* ---- Giá cuối của CTKM đặc biệt cho MỘT sản phẩm (người dùng bảo 18/11/2026, "làm bước 1") ----
    Cùng công thức progPrimary + progVals + computeP của trang Tính giá (đã kiểm 152 dòng với sheet Excel): L = F × C × (1−G) × (1−H) × (1−I); quà chéo trừ tiền, quà cùng loại cộng số đơn vị.
    H (CK CTKM quý) và quà quý chỉ có khi chương trình CỘNG CT Quý (p.stack); số lần = floor(F ÷ p.F) (không cộng dồn nhiều đơn). Pack (fixed) không tính ở đây. */
-/* Lipcare 2026 (anh chốt 26/11/2026, cách A): son thường đổi quà quý thành Sheer Color (p.qg) VÀ thêm 1 Sheer Color của chương trình; son Lip On Lip giữ quà quý của chính nó (tặng cùng loại / Water Color).
-   Sản phẩm đủ mốc của chương trình (riêng số lượng của nó) thì khung giá, phiếu, bước Số lượng và tin Zalo tự cộng cả hai (ý tưởng 1). Thanh toán không đổi, chỉ giá cuối đổi. */
+/* Giá CTKM đặc biệt TỰ CỘNG vào thẻ sản phẩm, phiếu, bước Số lượng và tin Zalo (người dùng báo giá sai và chọn "ý 1", 26/11/2026).
+   - Chương trình CỘNG CTKM quý (stack) và số lượng của riêng sản phẩm đủ mức: tự cộng; nhiều chương trình thì lấy chương trình cho giá cuối rẻ nhất (không tự cộng hai chương trình đặc biệt).
+   - Chương trình KHÔNG cộng quý: chỉ tính khi đã chọn chương trình đó. Scar Z KEY (khách đăng ký) chỉ khi chọn. Pack tính riêng.
+   Khách trả = tiền sau CK trừ quà quý chéo (như dòng thường); quà của chương trình đặc biệt chỉ trừ vào GIÁ CUỐI (giữ quy tắc Lipcare). */
+const regOnly = p => /\bKEY\b/i.test(p.title);
 function bothCalc(d, n) {
   if (!d || !(n > 0)) return null;
-  const p = specialsOf(d.w).find(x => x.both);
-  if (!p) return null;
-  const pg = progOf[d.w];
-  if (pg && pg !== 'q') { const o = specialsOf(d.w).find(x => (x.lab || x.title) === pg); if (o && !o.stack) return null; }
-  const need = specNeed(d, p);
-  if (!need || n < need) return null;
-  const r = specCalc(d, p, n), pri = specPrimary(d, p);
-  if (!r || r.P == null || !pri || !pri.gift) return null;
-  const k = p.F > 0 ? Math.max(1, Math.floor(n / p.F + 1e-9)) : 1;
-  const swap = !!(p.qg && giftIdx(p.qg) !== '');
-  const q = swap ? calcQuyRaw(Object.assign({}, effOf(d), { o: p.qg, n: d.n > 0 ? d.n : 0 }), n) : calcQuy(d, n);
-  return { p, name: p.lab || p.title, P: r.P, n: pri.n * k, gift: giftName(pri.gift.l), swap, qN: q.N, qName: q.giftName, pay: swap ? q.L : q.pay };
+  const list = specialsOf(d.w).filter(p => p.fixed == null && !(p.e && daysLeft(p.e) < 0));
+  const pg = progOf[d.w], chosen = pg && pg !== 'q' ? list.find(x => (x.lab || x.title) === pg) : null;
+  const enough = p => { const need = specNeed(d, p); return need > 0 && n >= need; };
+  const cands = chosen && !chosen.stack ? [chosen] : list.filter(p => p.stack && (!regOnly(p) || p === chosen));
+  const plain = calcQuy(d, n);
+  let best = null;
+  cands.filter(enough).forEach(p => {
+    const r = specCalc(d, p, n); if (!r || r.P == null) return;
+    if (p.stack && !p.both && plain.P != null && !(r.P < plain.P - 0.5)) return;   // không lợi hơn thì thôi
+    if (!best || r.P < best.r.P) best = { p, r };
+  });
+  if (!best) return null;
+  const { p, r } = best, pri = specPrimary(d, p), k = p.F > 0 ? Math.max(1, Math.floor(n / p.F + 1e-9)) : 1;
+  const swap = !!(p.stack && p.qg && giftIdx(p.qg) !== '');
+  const q = !p.stack ? null : swap ? calcQuyRaw(Object.assign({}, effOf(d), { o: p.qg, n: d.n > 0 ? d.n : 0 }), n) : plain;
+  const I = p.ck || 0, sp = r.parts.filter(t => !/^CTKM quý|^CK CTKM quý/.test(t)).map(t => t.replace(/^CK đặc biệt /, 'CK '));
+  const pay = swap ? q.L * (1 - I) : r.L - (q ? q.cost || 0 : 0);
+  return { p, name: p.lab || p.title, P: r.P, units: r.units, n: pri && pri.gift ? pri.n * k : 0, gift: pri && pri.gift ? giftName(pri.gift.l) : '', sp, ck: I,
+    ckAmt: I > 0 ? r.L / (1 - I) - r.L : 0, swap, qN: q ? q.N : 0, qName: q ? q.giftName : '', pay };
+}
+const capFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
+// Khung "ý 1" trên thẻ: một giá đã gộp, quà của từng chương trình, số nhận và tiền khách trả
+function bigCard(d, n, P, pay, units, qTxt, sTxt, head) {
+  const u = esc(d.u || 'sp'), pu = esc(pUnit(d)), lu = listUnit(d), sv = lu - P, M = d.m || 1;
+  return '<div class="bc"><div class="bc-k">' + head + '</div><div class="bc-p">' + fmt(P) + '<small>/' + pu + '</small></div>' +
+    (sv > 0.5 ? '<div class="bc-s">Rẻ hơn niêm yết ' + fmt(sv) + ' (' + String(+(sv / lu * 100).toFixed(1)).replace('.', ',') + '%)</div>' : '') +
+    (qTxt || sTxt ? '<div class="bc-g">' + (qTxt ? '<div class="q">● Quý: ' + qTxt + '</div>' : '') + (sTxt ? '<div class="s">● Đặc biệt: ' + sTxt + '</div>' : '') + '</div>' : '') +
+    '<div class="bc-f"><span>Mua ' + n + (units > n ? ', nhận ' + units : '') + ' ' + u + (M > 1 ? ' (' + n * M + ' chai)' : '') + '</span><span>Trả <b>' + fmt(pay) + '</b></span></div></div>';
+}
+function quyTxt(d, n, N, giftName_) {
+  const parts = [], u = esc(d.u || 'sp');
+  if (N > 0) { const g = norm(giftName_), same = g.includes(norm(d.b)) || norm(d.b).includes(g) || g.includes(norm(shortName(d))); parts.push(same ? 'tặng ' + N + ' ' + u + ' cùng loại' : 'tặng ' + N + ' ' + esc(giftName_)); }
+  if (d.h > 0 && (d.e > 0 ? n * cNet(d) >= d.e - 1e-9 : !(d.f > 0) || n >= d.f)) parts.push('CK ' + +(d.h * 100).toFixed(2) + '%');
+  return parts.join(' + ');
 }
 function specPrimary(d, p) {
   if (p.cq > 0) {
@@ -2666,7 +2722,7 @@ function renderCart() {
     }
     const both = bothCalc(d, n), shownP = both ? both.P : r.P;
     const linePay = both ? both.pay : r.pay, qN = both ? both.qN : r.N, qName = both ? both.qName : r.giftName;
-    gross += r.gross; pay += linePay; gift += both && both.swap ? 0 : r.cost;
+    gross += r.gross; pay += linePay; gift += both && (both.swap || !both.p.stack) ? 0 : r.cost;
     if (r.miss) anyMiss = true;
     if (r.warn) anyWarn = r.warn;
     let g = '';
@@ -2674,8 +2730,8 @@ function renderCart() {
     else if (hasQuy(d)) g = '<div class="gift" style="color:var(--muted)">Chưa đủ ' + fmt(d.e) + ' để nhận quà' + (caringOf(d) ? ' cùng loại' : '') + '</div>';
     (r.cx || []).forEach(x => { g += '<div class="gift' + (!x.same && !(x.price > 0) ? ' bad' : '') + '">' + (!x.same && !(x.price > 0) ? 'Thiếu giá quà ' + esc(giftName(x.opt.label)) : '✓ Tặng ' + x.n + ' ' + esc(giftName(x.opt.label)) + ' (' + ruleLabel(caringOf(d)[x.key]).toLowerCase() + ' ' + fmt(caringOf(d)[x.key].thr) + ')') + '</div>'; });
     { const cr0 = caringOf(d); if (cr0) { const miss0 = [['hi', cr0.hi], ['lo', cr0.lo]].filter(([k, rl]) => rl && !(k === 'hi' && isCaringRule(rl)) && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]); if (miss0.length) g += '<div class="gift" style="color:var(--muted)">Đủ mốc ' + (isCaringRule(cr0.hi) ? 'Caring' : 'nhóm rửa mặt/tẩy trang') + ' ' + miss0.map(([k, rl]) => fmt(rl.thr)).join(', ') + ': chọn quà ở Chi tiết</div>'; } }
-    if (both) g += '<div class="gift">✓ Tặng ' + both.n + ' ' + esc(both.gift) + ' (' + esc(both.name) + ')</div>';
-    if (progOf[d.w] && progOf[d.w] !== 'q' && !(both && progOf[d.w] === both.name)) g += '<div class="gift" style="color:var(--dbt-ink)">Đơn theo CTKM đặc biệt: ' + esc(progOf[d.w]) + ' · giá chưa tính CTKM đặc biệt, xem ở trang Tính giá</div>';
+    if (both) g += '<div class="gift">✓ ' + esc(capFirst(both.sp.join(' + '))) + ' (' + esc(both.name) + ')</div>';
+    if (progOf[d.w] && progOf[d.w] !== 'q' && !(both && progOf[d.w] === both.name)) g += '<div class="gift" style="color:var(--dbt-ink)">Đơn theo CTKM đặc biệt: ' + esc(progOf[d.w]) + ' · chưa đủ mức nên giá chưa gồm ưu đãi chương trình này</div>';
     addLine(d, '<div class="cline"><div class="n1">' + esc(shortName(d)) + '</div><div class="amt">' + fmt(linePay) + '</div>' +
       '<div class="n2">' + n + ' ' + esc(d.u || 'sp') + esc(varSuffix(d)) + (shownP != null ? ' · ' + fmt(shownP) + '/' + esc(pUnit(d)) : '') + '</div>' + rm + g + '</div>');
   });
@@ -2747,7 +2803,7 @@ function copyText() {
     const r = calcQuy(d, n);
     if (r.skip) { single.push(n + ' ' + (d.u || 'sp') + ' ' + shortName(d) + ' · xem giá ở trang Tính giá'); return; }
     const both = bothCalc(d, n);
-    single.push(n + ' ' + (d.u || 'sp') + ' ' + shortName(d) + varSuffix(d) + ((both ? both.qN : r.N) > 0 ? ' · tặng ' + (both ? both.qN + ' ' + both.qName : r.N + ' ' + r.giftName) : '') + (both ? ' · tặng ' + both.n + ' ' + both.gift + ' (' + both.name + ')' : '') + (progOf[d.w] && progOf[d.w] !== 'q' && !(both && progOf[d.w] === both.name) ? ' · theo CTKM đặc biệt ' + progOf[d.w] + ' (giá xem ở Tính giá)' : '') + ' · ' + fmt(both ? both.pay : r.pay));
+    single.push(n + ' ' + (d.u || 'sp') + ' ' + shortName(d) + varSuffix(d) + ((both ? both.qN : r.N) > 0 ? ' · tặng ' + (both ? both.qN + ' ' + both.qName : r.N + ' ' + r.giftName) : '') + (both ? ' · ' + both.sp.join(' + ') + ' (' + both.name + ')' : '') + (progOf[d.w] && progOf[d.w] !== 'q' && !both ? ' · theo CTKM đặc biệt ' + progOf[d.w] + ' (chưa đủ mức)' : '') + ' · ' + fmt(both ? both.pay : r.pay));
   });
   Object.keys(packOf).forEach(t => { const r = packCalc(t, packOf[t]); if (!r) return; single.push(packDesc(r).replace(/^(\d+) pack/, '$1 ' + r.cfg.name.replace(/\s*\(.*$/, '')) + ' · ' + fmt(r.pay)); single.push('Giá cuối: ' + packPerTxt(r)); });
   if (single.length) { if (MC.groups.length) { out.push(''); out.push('Đơn lẻ'); } single.forEach(x => out.push(x)); }
@@ -2929,6 +2985,7 @@ document.addEventListener('click', e => {
   if (b.dataset.popen !== undefined) {   // mở ngăn khuyến mãi của sản phẩm (có cả hai loại thì mở sẵn tab Quý)
     const w = +b.dataset.popen, d = DATA.find(x => x.w === w);
     popen.add(w); if (quyKind(d) && specialCount(d) > 0 && !tabOf[w]) tabOf[w] = 'q';
+    { const seg = e.target.closest && e.target.closest('.pl'); if (seg) tabOf[w] = seg.classList.contains('s') ? 's' : seg.classList.contains('i') ? 'i' : 'q'; }
     b.closest('.card').outerHTML = card(d); return;
   }
   if (b.dataset.padd !== undefined) {   // "+ Thêm N chai": cộng thêm cho sản phẩm này cho đủ mốc cả nhóm
@@ -3035,7 +3092,7 @@ function renderQty() {
     else if (r.miss) g = '<div class="qs-g bad">Thiếu giá quà ' + esc(r.giftName) + '</div>';
     else if ((both ? both.qN : r.N) > 0) g = '<div class="qs-g ok">✓ Tặng ' + (both ? both.qN : r.N) + ' ' + esc(both ? both.qName : r.giftName) + '</div>';
     else if (hasQuy(d)) g = '<div class="qs-g" style="color:var(--muted)">Chưa đủ ' + fmt(d.e) + ' để nhận quà</div>';
-    rows.push('<div class="qs-row" data-w="' + d.w + '"><div class="qs-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + (!r.skip && shownP != null ? ' · giá cuối ' + fmt(shownP) : '') + '</span>' + g + (both ? '<div class="qs-g ok">✓ Tặng ' + both.n + ' ' + esc(both.gift) + ' (đặc biệt)</div>' : '') + (fixed ? '<span>Sản phẩm nhiều mã: đổi từng mã ở thẻ sản phẩm</span>' : '') + '</div>' +
+    rows.push('<div class="qs-row" data-w="' + d.w + '"><div class="qs-t"><b>' + esc(shortName(d)) + '</b><span>' + fmt(d.c) + '/' + esc(d.u || 'sp') + (!r.skip && shownP != null ? ' · giá cuối ' + fmt(shownP) : '') + '</span>' + g + (both ? '<div class="qs-g ok">✓ ' + esc(capFirst(both.sp.join(' + '))) + ' (đặc biệt)</div>' : '') + (fixed ? '<span>Sản phẩm nhiều mã: đổi từng mã ở thẻ sản phẩm</span>' : '') + '</div>' +
       '<div class="qs-r"><div class="stepper" role="group"><button type="button" data-msd="' + d.w + '" aria-label="Giảm"' + (fixed ? ' disabled' : '') + '>−</button><input type="number" inputmode="numeric" min="0" step="1" value="' + n + '" aria-label="Số lượng ' + esc(shortName(d)) + '"' + (fixed ? ' readonly' : '') + '><button type="button" data-msi="' + d.w + '" aria-label="Tăng"' + (fixed ? ' disabled' : '') + '>+</button></div>' +
       '<b class="qs-p">' + (r.skip ? '—' : fmt(both ? both.pay : r.pay)) + '</b></div></div>');
   });
