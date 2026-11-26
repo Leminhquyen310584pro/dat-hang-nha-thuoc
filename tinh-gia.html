@@ -2127,11 +2127,15 @@ function ownSameRule(d){
   const has = String(d.d || '').replace(/Ò/g, '=>').split(/\n|\s\*\s/).map(x => x.replace(/^\*\s*/, '').trim()).some(l => { const m = l.match(/^(?:Mua\s+đơn\s+hàng|Đơn\s+hàng)\s+([\d.]+)\s*vnđ\s+(?:sản\s+phẩm\s+|son\s+Lip\s+On\s+Lip\s+)?cùng\s+loại/i); return m && toNum(m[1]) === d.e; });
   return has ? og : null;
 }
+/* Son Lip On Lip (người dùng chốt 26/11/2026): dòng nào đã tự đủ 400.000đ "cùng loại" thì tiền của dòng đó KHÔNG tính tiếp cho luật "son Lip On Lip bất kỳ → Water Color";
+   Water Color chỉ gom tiền các dòng CHƯA đủ mốc cùng loại. */
+const isLolAny = r => r.tk === 'money' && /liponlipbatky/.test(r.key);
+const tookSame = (w, q) => { const d = dataW(w), so = ownSameRule(d); return !!so && Math.floor((q || 0) * cNet(d) / d.e + 1e-9) > 0; };
 function mixComputeR(g, qty){
   const used = w => (qty[w] || 0) > 0;
-  const active = rules_().filter(r => [...r.members].some(used)), cards = [];
+  const active = rules_().filter(r => [...r.members].some(w => used(w) && !(isLolAny(r) && tookSame(w, qty[w])))), cards = [];
   active.forEach(r => {
-    const ws = [...r.members].filter(used); let total = 0, gross = 0;
+    const ws = [...r.members].filter(w => used(w) && !(isLolAny(r) && tookSame(w, qty[w]))); let total = 0, gross = 0;
     ws.forEach(w => { const q = qty[w], c = dataW(w).c; gross += q * c; total += r.tk === 'money' ? q * cNet(dataW(w)) : q * (r.weight[w] || 1); });
     const ok = total >= r.thr - 1e-9, suat = ok ? Math.floor(total / r.thr + 1e-9) : 0;
     let gi = mixPick[r.key];
@@ -2151,7 +2155,7 @@ function mixComputeR(g, qty){
       if (!c.r.members.has(w)) return;
       if (c.r.ck > 0 && Math.abs(h - c.r.ck) < 1e-9) { h = c.ok ? h : 0; }   // CK % của luật đã nằm sẵn trong cột H của Q4: chỉ giữ khi đủ điều kiện, không nhân hai lần
       else if (c.ck > 0) f *= (1 - c.ck);
-      if (c.value > 0 && c.gross > 0) alloc += c.value * gross / c.gross;
+      if (c.value > 0 && c.gross > 0 && c.ws.includes(w)) alloc += c.value * gross / c.gross;
     });
     const L = gross * (1 - (d.gp || 0)) * (1 - h) * f, M = d.m || 1;
     /* luật "Mua đơn hàng <E> cùng loại" là suất RIÊNG của từng dòng, tính theo tiền của chính sản phẩm; cộng thêm vào luật của nhóm (xem ownSameRule) */
@@ -2176,7 +2180,8 @@ function renderRuleStatus(g, r, st){
     if (c.warn) el.appendChild(mkEl('div', 'vc', '⚠ ' + c.warn)).style.color = 'var(--warn)';
     st.appendChild(el);
   });
-  if (!r.cards.length) st.appendChild(mkEl('div', 'vc', 'Chọn số lượng ở các sản phẩm bên dưới (bấm + Thêm) để xem các mức khuyến mãi của nhóm.')).style.color = 'var(--muted)';
+  r.lines.filter(l => l.N > 0 && l.og && !r.cards.some(c => c.ws.includes(l.w))).forEach(l => { st.appendChild(mkEl('div', 'vc', '✓ ' + l.d.t.replace(/\s*\(.*$/, '') + ': tặng ' + l.N + ' cùng loại')).style.color = 'var(--ok)'; });
+  if (!r.cards.length && !r.lines.length) st.appendChild(mkEl('div', 'vc', 'Chọn số lượng ở các sản phẩm bên dưới (bấm + Thêm) để xem các mức khuyến mãi của nhóm.')).style.color = 'var(--muted)';
 }
 /* Chương trình quà KHÔNG quy ra tiền, không cộng dồn (túi tote 499.000đ; người dùng chốt 15/11/2026): trộn các sản phẩm của nhóm trong MỘT đơn; đủ mốc (gấp đôi mốc thì gấp đôi quà) thì tặng quà, giá không đổi;
    cộng được với CT Quý nên từng dòng vẫn nhận CK và quà của CTKM quý theo ngưỡng của chính sản phẩm. CTĐB khác chạy cùng thời điểm được tính ở màn riêng của chương trình đó. */
@@ -2552,13 +2557,14 @@ function renderMixTop(g, r){
     } else st = { thr: r.thr, total: r.T, k: r.suat, money: r.unit !== 'chai', unit: r.unit, cum: !!r.cum, reqMiss: /^Bắt buộc/.test(r.reqNote || ''), gift: r.giftN, ck: r.ck, multi: false, oks: r.ok ? 1 : 0, n: 1 };
   }
   const nn = $('mst-n'), tr = $('mst-track');
-  if (!st) { tr.querySelectorAll('.mst-node').forEach(e => e.remove()); $('mst-b').textContent = 'Chọn sản phẩm bên dưới'; $('mst-a').textContent = ''; $('mst-i').style.width = '0'; strip.classList.remove('ok'); nn.hidden = true; tr.hidden = true; }
+  if (!st) { tr.querySelectorAll('.mst-node').forEach(e => e.remove()); $('mst-b').textContent = r.lines.some(l => l.N > 0 && l.og) ? '✓ Được quà cùng loại' : 'Chọn sản phẩm bên dưới'; $('mst-a').textContent = ''; $('mst-i').style.width = '0'; strip.classList.remove('ok'); nn.hidden = true; tr.hidden = true; }
   else paintStrip(strip, st, r.reqNote);
   // dòng quà
   const gb = $('mix-gift'); gb.innerHTML = '';
   const row = (text, cls, onChange) => { const e = mkEl('div', 'mxgift'), t = mkEl('div', 'gt' + (cls ? ' ' + cls : '')); t.appendChild(mkEl('small', '', 'Quà tặng')); t.appendChild(document.createTextNode(text)); e.appendChild(t);
     if (onChange) { const bt = mkEl('button', '', 'Đổi Quà ›'); bt.type = 'button'; bt.addEventListener('click', onChange); e.appendChild(bt); } gb.appendChild(e); };
   if (!none && g.kind === 'rule') {
+    r.lines.filter(l => l.N > 0 && l.og && !r.cards.some(c => c.ws.includes(l.w))).forEach(l => row('Tặng ' + l.N + ' ' + l.d.t.replace(/\s*\(.*$/, '') + ' (cùng loại)', '', null));
     r.cards.forEach(c => {
       if (!c.r.opts.length && !(c.ck > 0 || c.r.ck > 0)) return;
       const ck = c.r.ck > 0 ? 'CK ' + +(c.r.ck * 100).toFixed(2) + '%' : '', head = r.cards.length > 1 ? (c.r.tk === 'money' ? 'Mốc ' + fmt(c.r.thr) + ': ' : 'Mua ' + c.r.thr + ': ') : '';

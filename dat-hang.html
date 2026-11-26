@@ -1917,7 +1917,8 @@ function allSubs() {
 function subLive(s) { return !s.e || daysLeft(s.e) >= 0; }
 function subStat(s) {
   let t = 0;
-  s.members.forEach(w => { const q = qtyOf[w] || 0, d = DW[w]; if (q > 0 && d) t += s.tk === 'money' ? q * cNet(d) : q * (s.weight[w] || 1); });
+  const lol = s.kind === 'q' && isLolAny(RULES[+s.id.slice(1)]) && [...s.members].filter(w => (qtyOf[w] || 0) > 0).length >= 2;
+  s.members.forEach(w => { const q = qtyOf[w] || 0, d = DW[w]; if (q > 0 && d && !(lol && tookSame(w))) t += s.tk === 'money' ? q * cNet(d) : q * (s.weight[w] || 1); });
   const k = Math.floor(t / s.thr + 1e-9), over = t - k * s.thr;
   return { t, k, ok: k >= 1, pct: Math.min(100, t / s.thr * 100), rest: Math.max(0, s.thr - over) };
 }
@@ -2037,10 +2038,14 @@ function ownSameRule(d) {
   const has = String(d.d || '').replace(/Ò/g, '=>').split(/\n|\s\*\s/).map(x => x.replace(/^\*\s*/, '').trim()).some(l => { const m = l.match(/^(?:Mua\s+đơn\s+hàng|Đơn\s+hàng)\s+([\d.]+)\s*vnđ\s+(?:sản\s+phẩm\s+|son\s+Lip\s+On\s+Lip\s+)?cùng\s+loại/i); return m && +m[1].replace(/\./g, '') === d.e; });
   return has ? og : null;
 }
+/* Son Lip On Lip (người dùng chốt 26/11/2026): dòng nào đã tự đủ 400.000đ "cùng loại" thì tiền của dòng đó KHÔNG tính tiếp cho luật "son Lip On Lip bất kỳ → Water Color";
+   Water Color chỉ gom tiền các dòng CHƯA đủ mốc cùng loại. */
+const isLolAny = r => r.tk === 'money' && /liponlipbatky/.test(r.key);
+const tookSame = w => { const d = DW[w], so = ownSameRule(d); return !!so && Math.floor((qtyOf[w] || 0) * cNet(d) / d.e + 1e-9) > 0; };
 function mixRuleResult(sub, usedWs) {
   const rules = RULES.filter(r => usedWs.some(w => r.members.includes(w)));
-  const cards = rules.map(r => {
-    const mem = new Set(r.members), ws = usedWs.filter(w => mem.has(w));
+  const cards = rules.filter(r => !isLolAny(r) || usedWs.some(w => r.members.includes(w) && !tookSame(w))).map(r => {
+    const mem = new Set(r.members), ws = usedWs.filter(w => mem.has(w) && !(isLolAny(r) && tookSame(w)));
     let total = 0, gross = 0;
     ws.forEach(w => { const q = qtyOf[w], d = DW[w]; gross += q * d.c; total += r.tk === 'money' ? q * cNet(d) : q * ((r.weight || {})[w] || 1); });
     const ok = total >= r.thr - 1e-9, suat = ok ? Math.floor(total / r.thr + 1e-9) : 0;
@@ -2066,7 +2071,7 @@ function mixRuleResult(sub, usedWs) {
       if (!c.r.members.includes(w)) return;
       if (c.r.ck > 0 && Math.abs(h - c.r.ck) < 1e-9) h = c.ok ? h : 0;   // CK % của luật đã nằm sẵn ở cột H của Q4: chỉ giữ khi đủ điều kiện, không nhân hai lần
       else if (c.ck > 0) f *= (1 - c.ck);
-      if (c.value > 0 && c.gross > 0) alloc += c.value * gross / c.gross;
+      if (c.value > 0 && c.gross > 0 && c.ws.includes(w)) alloc += c.value * gross / c.gross;
     });
     const L = gross * (1 - (d.gp || 0)) * (1 - h) * f, M = d.m || 1;
     /* luật "Mua đơn hàng <E> cùng loại" của từng dòng là suất RIÊNG (xem ownSameRule), cộng thêm vào luật của nhóm */
@@ -2148,6 +2153,7 @@ function mixResultHtml(sub) {
       gifts += '<div class="rs-gift"><b>✓ Tặng ' + c.giftN + ' ' + esc(giftName(c.opt.label)) + '</b>' + (c.price > 0 ? ' <small>(giá quà ' + fmt(c.price) + '/cái, trừ vào giá từng sản phẩm)</small>' : '') +
         (names.length > 1 ? '<div class="rs-opts">' + names.map(o => '<button type="button" class="rs-opt' + (o.gi === c.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(c.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div>' : '') + '</div>';
     });
+    r.lines.filter(l => l.N > 0 && l.og && !r.cards.some(c => c.ws.includes(l.d.w))).forEach(l => { gifts += '<div class="rs-gift"><b>✓ Tặng ' + l.N + ' ' + esc(l.og.ty === 's' ? shortName(l.d) : giftName(l.og.l)) + '</b> <small>(' + (l.og.ty === 's' ? 'cùng loại' : 'quà riêng') + ' của ' + esc(shortName(l.d)) + ')</small></div>'; });
     r.cards.filter(c => c.excl).forEach(c => { gifts += '<div class="rs-gift" style="color:var(--muted)"><small>' + esc(c.r.name) + ': không áp dụng đồng thời với luật 550.000đ Sunplay (suất 550k chỉ nhận quà của suất này)</small></div>'; });
     r.cards.filter(c => c.ok && c.ck > 0).forEach(c => { gifts += '<div class="rs-gift"><b>✓ CK ' + +(c.ck * 100).toFixed(2) + '%</b> <small>theo ' + esc(c.r.name) + '</small></div>'; });
   } else {
@@ -2192,6 +2198,7 @@ function zaloName(t) {
   }).join(' ');
 }
 // Quà và CK của một đơn hỗn hợp
+const mixOk = res => res.kind === 'q' ? res.cards.some(c => c.ok) || res.lines.some(l => l.N > 0 && l.og) : res.ok;
 function mixSummary(res) {
   const gm = new Map(), cks = []; let ok = false;
   const addG = (n, label) => gm.set(label, (gm.get(label) || 0) + n);
@@ -2215,7 +2222,7 @@ function claimMap() {
     if (!s || !subLive(s)) return;
     const res = mixResult(s);
     if (!res || res.lines.length < 2) return;
-    if (!(res.kind === 'q' ? res.cards.some(c => c.ok) : res.ok)) return;
+    if (!mixOk(res)) return;
     if (res.lines.some(l => claim.has(l.d.w))) return;
     res.lines.forEach(l => claim.set(l.d.w, { s, res, line: l }));
     groups.push({ s, res });
@@ -2270,7 +2277,7 @@ function mixApplyHtml(s) {
   if (res && res.kind === 'p') return '<div class="ms-apply on"><span>' + (res.ok ? '✓ Đã tính quà · phiếu Đơn hàng có sẵn các sản phẩm này' : 'Phiếu Đơn hàng có sẵn các sản phẩm này') + '</span><span class="ms-btns"><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
   const on = mixApplied.includes(s.id);
   if (on) return '<div class="ms-apply on"><span>✓ Đã đưa vào phiếu Đơn hàng</span><span class="ms-btns"><button type="button" class="ms-apbtn" data-mxoff="' + esc(s.id) + '">Bỏ</button><button type="button" class="ms-apbtn solid" data-mxview="1">Xem đơn ›</button></span></div>';
-  const okGrp = !!res && res.lines.length >= 2 && (res.kind === 'q' ? res.cards.some(c => c.ok) : res.ok);
+  const okGrp = !!res && res.lines.length >= 2 && mixOk(res);
   const MC = claimMap(), conflict = !!res && res.lines.some(l => MC.claim.has(l.d.w));
   if (!res || res.lines.length === 0) return '';
   if (res.lines.length < 2) return '<div class="ms-apply off">Thêm 1 sản phẩm nữa của nhóm để dùng giá đơn hỗn hợp.</div><button type="button" class="ms-apbtn big" data-mxfocus="1">+ Chọn thêm sản phẩm</button>';
