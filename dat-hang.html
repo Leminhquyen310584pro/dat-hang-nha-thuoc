@@ -937,6 +937,43 @@ body{font-feature-settings:"tnum" 0}
 .pline .pl.i::before,.pline .pl.i::after{display:none}
 .card .pline{width:calc(100% - 24px);margin:8px 12px 10px;box-sizing:border-box}
 
+/* Bảng gọn Mua | Tặng | Giá cuối (ý tưởng 1, 27/11/2026) */
+.tbl{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);margin-top:8px;color:var(--ink)}
+.tb-h,.tbl .thrbtn.chip.rowb{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left}
+.tb-h{background:var(--surface-2);color:var(--muted);font-size:11.5px;font-weight:700;padding:7px 10px}
+.tb-h span:last-child{text-align:right}
+.tbl .thrbtn.chip.rowb{border:0;border-top:1px solid var(--line);border-radius:0;margin:0;padding:9px 10px;min-height:52px;background:var(--surface);color:var(--ink);box-shadow:none;font-family:inherit;cursor:pointer}
+.tbl .thrbtn.chip.rowb.on{background:var(--quy-soft);box-shadow:inset 0 0 0 2px var(--quy)}
+.tbl .tb-q{font-size:18px;font-weight:700}
+.tbl .tb-g{font-size:12.5px;font-weight:400;line-height:1.35}
+.tbl .tb-g span{display:block}
+.tbl .tb-p{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.tbl .tb-p b{font-size:17px;font-weight:700;white-space:nowrap}
+.tbl .tb-p i{font-style:normal;font-size:10.5px;font-weight:700;background:#0B7F58;color:#fff;border-radius:99px;padding:2px 8px;white-space:nowrap}
+.tb-note{font-size:12px;color:var(--muted);margin-top:5px}
+.tb-lead{background:var(--surface-2);border-radius:10px;padding:8px 10px;font-weight:700;font-size:13.5px;margin-top:6px}
+.tb-lead span{display:inline}
+.tb-now{font-size:12.5px;margin-top:5px}
+.pxb .pb-ways{margin-top:8px}
+
+.px-q .tbl,.pxb .tbl{width:100%;align-self:stretch}
+.px-q .tb-note,.pxb .tb-note{text-align:left;align-self:stretch}
+.tbl .thrbtn.chip.rowb .tb-q{font-size:18px;font-weight:700;text-align:left}
+.tbl .thrbtn.chip.rowb .tb-g{font-size:13px;font-weight:400;text-align:left;color:var(--ink)}
+.tbl .thrbtn.chip.rowb .tb-g span{font-weight:400}
+
+/* Đơn trống: 3 bước */
+.cart.empty .stepbar,.cart.empty #clear,.cart.empty .cart-sum,.cart.empty .fine,.cart.empty .cart-foot,.cart.empty #cartMok,.cart.empty #cartSpec{display:none}
+.cart.empty .cartclose{min-width:42px;min-height:42px}
+.cart.empty .cart-empty{display:block;padding:0 0 8px}
+.ce-step{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.ce-step:nth-child(3){border-bottom:0}
+.ce-step i{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:700;background:#FFE8DA;color:#9A3F18}
+.ce-step>div{text-align:left}
+.ce-step b{display:block;font-size:14px;color:var(--ink);text-align:left}
+.ce-step span{display:block;font-size:12.5px;color:var(--muted)}
+.ce-go{width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:var(--primary);color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
+
 </style>
 </head>
 <body>
@@ -980,7 +1017,7 @@ body{font-feature-settings:"tnum" 0}
         <div class="row"><span>Quà chéo đã trừ</span><b id="sGift">0đ</b></div>
         <p class="note" id="sNote"></p>
       </div>
-      <p class="fine">Giá trên là tính theo CTKM quý. Chương trình đặc biệt xem ở trang Tính giá (chưa tính trong trang này).</p>
+      <p class="fine">Giá đã tính CTKM quý và CTKM đặc biệt được cộng cùng quý. Chương trình không cộng quý chỉ tính khi chọn ở thẻ sản phẩm.</p>
       <div class="cart-foot">
         <div class="cf-tot"><span>Tổng thanh toán</span><b id="sPay">0đ</b></div>
         <div class="cf-btns"><button class="back" id="cartBack" type="button">← Chọn thêm sản phẩm</button><button class="copy" id="copy" type="button">Gửi đơn</button></div>
@@ -1734,25 +1771,34 @@ function specPartHtml(d, t) {
   if ((m = /^tặng (\d+) cùng loại$/.exec(t))) return '<span class="s">' + esc(m[1] + ' ' + u) + ' tặng cùng loại (đặc biệt)</span>';
   return '<span class="s">' + esc(t) + ' (đặc biệt)</span>';
 }
+/* Bảng gọn (ý tưởng 1, người dùng chọn 27/11/2026), dùng cho cả CTKM quý và đặc biệt: Mua | Tặng | Giá cuối; bấm một dòng để đặt số lượng; "Rẻ nhất" chỉ khi giá các mức khác nhau */
+function lvlTable(d, rows, prog) {
+  const n = qtyOf[d.w] || 0, u = esc(d.u || 'sp'), pu = esc(pUnit(d));
+  const ps = rows.filter(r => r.P != null).map(r => r.P), min = Math.min(...ps), same = rows.length > 1 && ps.length === rows.length && ps.every(x => Math.abs(x - ps[0]) < 0.5);
+  const body = rows.map(r => '<button type="button" class="thrbtn chip rowb' + (n === r.qty ? ' on' : '') + '" data-set="' + d.w + '" data-n="' + r.qty + '" data-prog="' + esc(prog) + '">' +
+    '<span class="tb-q">' + r.qty + '</span><span class="tb-g">' + r.gift + '</span><span class="tb-p"><b>' + (r.P != null ? fmt(r.P) : 'Thiếu giá quà') + '</b>' +
+    (!same && rows.length > 1 && r.P != null && r.P <= min + 0.5 ? '<i>Rẻ nhất</i>' : '') + '</span></button>').join('');
+  return '<div class="tbl"><div class="tb-h"><span>Mua</span><span>Tặng</span><span>Giá cuối/' + pu + '</span></div>' + body + '</div>' +
+    '<div class="tb-note">' + (rows.length > 1 ? 'Bấm một dòng để đặt số lượng đó.' : 'Bấm dòng trên để đặt số lượng đó.') + (same ? ' Giá mỗi ' + pu + ' không đổi ở mọi mức.' : '') + '</div>';
+}
 function specBodyHtml(v) {
   const d = v.d, p = v.p, need = v.need, sb = v.sb, n = qtyOf[d.w] || 0, u = esc(d.u || 'sp'), pu = esc(pUnit(d));
-  const has = n >= need, q = has ? n : need, r = specCalc(d, p, q), list = listUnit(d), save = r.P != null ? list - r.P : 0;
-  let h = '<div class="pb-cmp"><div class="pb-old"><small>Giá niêm yết</small><b>' + fmt(list) + '</b><small>/' + pu + '</small></div>' +
-    '<div class="pb-new"><small>' + (has ? 'Đang đặt ' : 'Mua đủ ') + q + ' ' + u + '</small><b>' + (r.P != null ? fmt(r.P) : 'Thiếu giá quà') + '</b><small>/' + pu + '</small></div></div>';
-  if (save >= 1) h += '<div class="pb-save">Tiết kiệm ' + fmt(save) + ' mỗi ' + pu + ' (' + Math.round(save / list * 100) + '%)</div>';
-  const parts = r.parts.map(t => specPartHtml(d, t)).sort((a, b) => (a.indexOf('class="q"') < 0) - (b.indexOf('class="q"') < 0)).join(' + ');   /* quà quý ghi trước */
-  h += '<div class="pb-fact">Trả <b>' + fmt(r.pay) + '</b> · nhận <b>' + r.units + ' ' + u + '</b>' + (parts ? '<div>' + parts + '</div>' : '') + '</div>';
-  const cr = p.stack && has ? caringOf(d) : null;
+  const prog = p.lab || p.title;
+  const qtys = v.more.length ? v.more.map(x => x.qty) : [need];
+  const gift = r => r.parts.map(t => specPartHtml(d, t)).sort((a, b) => (a.indexOf('class="q"') < 0) - (b.indexOf('class="q"') < 0))
+    .map(h => p.stack ? h.replace('(CTKM quý)', '(quý)') : h.replace(' (đặc biệt)', '')).join('') || '—';
+  const rows = qtys.map(q => { const r = specCalc(d, p, q); return { qty: q, P: r.P, gift: gift(r) }; });
+  const one = specCalc(d, p, need);
+  let h = '<div class="tb-lead">Mua ' + need + ' ' + u + (one.parts.length ? ' · ' + gift(one).replace(/<\/span><span/g, '</span> + <span') : '') + '</div>' + lvlTable(d, rows, prog);
+  if (n > 0) {
+    if (n < need) h += '<div class="tb-now">Đang đặt ' + n + ' ' + u + ': cần thêm ' + (need - n) + ' ' + u + ' để đủ mức.</div>';
+    else { const r = specCalc(d, p, n); h += '<div class="tb-now thr-ok">✓ Đang đặt ' + n + ' ' + u + (r.P != null ? ' · giá cuối ' + fmt(r.P) + '/' + pu : '') + ' · trả ' + fmt(r.pay) + '</div>'; }
+  }
+  const cr = p.stack && n >= need ? caringOf(d) : null;
   if (cr) { const miss = [['hi', cr.hi], ['lo', cr.lo]].filter(([k, rl]) => rl && !(k === 'hi' && isCaringRule(rl)) && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]);
     if (miss.length) h += '<div class="spc-s warn-t">Còn quà CTKM quý (' + (isCaringRule(cr.hi) ? 'dòng Caring' : 'luật nhóm rửa mặt/tẩy trang') + ' ' + miss.map(([k, rl]) => fmt(rl.thr)).join(', ') + ') chưa chọn: chọn ở thẻ CTKM quý để cộng vào giá.</div>'; }
-  const add = need - n, prog = esc(p.lab || p.title);
-  const one = has ? '<span class="pb-way on thr-ok"><small>Một loại này</small><b>✓ Đang đặt ' + n + ' ' + u + '</b><small>' + fmt(r.pay) + '</small></span>'
-    : '<button type="button" class="thrbtn pb-way solid" data-set="' + d.w + '" data-n="' + need + '" data-prog="' + prog + '"><small>Một loại này</small><b>+ ' + add + ' ' + u + '</b><small>' + fmt(r.pay) + '</small></button>';
-  let mix = '';
-  if (sb) { const st = subStat(sb); mix = '<button type="button" class="px-mix pb-way" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '"><small>Ghép nhiều loại</small><b>Chọn ›</b><small>' +
-    (st.ok ? '✓ đơn đã đủ mốc' : (st.t > 0 ? 'còn thiếu ' : 'đủ ') + esc(fmtMix(sb, st.t > 0 ? st.rest : sb.thr))) + '</small></button>'; }
-  h += '<div class="pb-lab">Chọn cách đặt</div><div class="pb-ways">' + one + mix + '</div>';
-  if (v.more.length) h += '<details class="px-r pb-more"><summary>Mua nhiều hơn: ' + v.more.slice(1).map(x => x.qty).join(', ') + ' ' + u + '</summary>' + chipsHtml(d, v.more, p.lab || p.title) + '</details>';
+  if (sb) { const st = subStat(sb); h += '<div class="pb-ways"><button type="button" class="px-mix pb-way" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '"><small>Ghép nhiều loại</small><b>Chọn ›</b><small>' +
+    (st.ok ? '✓ đơn đã đủ mốc' : (st.t > 0 ? 'còn thiếu ' : 'đủ ') + esc(fmtMix(sb, st.t > 0 ? st.rest : sb.thr))) + '</small></button></div>'; }
   return h;
 }
 function progCard(o) {
@@ -1887,21 +1933,22 @@ function thrLine(d0, n) {
       const q = qk(k), r = calcQuy(d, q), P = !r.skip && !r.miss && r.P != null ? r.P : null;
       return { qty: q, k, P, sub: k + ' suất', price: P != null ? 'giá cuối ' + fmt(P) : '' };
     });
-    /* Ý 3 (người dùng chọn 19/11/2026, làm 22/11/2026): bỏ ô lặp. Giá các mức BẰNG nhau → một khối kết quả + 2 nút; KHÁC nhau → các dòng so sánh (số chai · suất · giá · rẻ hơn bao nhiêu); thiếu giá quà → giữ ô như cũ */
-    const allP = items.every(i => i.P != null), same = allP && items.every(i => Math.abs(i.P - items[0].P) < 0.5);
+    /* Bảng gọn 3 mức (27/11/2026, thay ba dòng của Ý 3); thiếu giá quà → giữ ô như cũ */
+    const allP = items.every(i => i.P != null);
     if (allP) {
       const unit = esc(pUnit(d));
-      const giftK = k => d.n > 0 && d.o ? 'tặng ' + k * d.n + ' ' + esc(giftName(d.o)) : k + ' suất';
+      const giftK = k => d.n > 0 && d.o ? 'tặng ' + k * d.n + ' ' + esc(niceName(giftName(d.o))) : k + ' suất';
       const head = kind === 'money' ? 'Mỗi ' + fmt(d.e) + ' (' + need + ' ' + u + ') ' + giftK(1) : 'Mỗi ' + need + ' ' + u + ' ' + giftK(1);
-      const stt = reached ? '<div class="thr-ok">✓ Đang đặt ' + n + ' ' + u + ' · đủ ngưỡng</div>' : '';
-      const base = items[0].P;
-      const rows = items.map(it => {
-        const cur = n === it.qty, diff = base - it.P;
-        return '<button type="button" class="thrbtn chip rowb' + (cur ? ' on' : '') + '" data-set="' + d.w + '" data-n="' + it.qty + '" data-prog="q"><span class="rb-l"><b>' + it.qty + ' ' + u + ' · ' + it.k + ' suất</b><small>' + giftK(it.k) + '</small></span>' +
-          '<span class="rb-r"><b>' + fmt(it.P) + '/' + unit + '</b><small class="' + (diff > 0.5 ? 'rb-g' : '') + '">' + (same ? 'giá không đổi' : it.k === 1 ? 'mức thấp nhất' : diff > 0.5 ? 'rẻ hơn ' + fmt(diff) + '/' + unit : diff < -0.5 ? 'đắt hơn ' + fmt(-diff) + '/' + unit : 'bằng mức thấp nhất') + '</small></span></button>';
-      }).join('');
-      return quyAcc('<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b><span>' + (same ? 'Giá mỗi ' + unit + ' không đổi · mua gấp đôi thì tặng gấp đôi' : 'Mua nhiều thì giá mỗi ' + unit + ' thay đổi') + noteGia + ' · bấm dòng để chọn mức</span></div>' + stt + '<div class="px-rows">' + rows + '</div></div>',
-        esc(head.replace(/<[^>]+>/g, '')) + ' · ' + fmt(items[0].P) + '/' + unit, 'acc-plain');
+      const stt = reached && !items.some(it => it.qty === n) ? '<div class="thr-ok">✓ Đang đặt ' + n + ' ' + u + ' · đủ ngưỡng</div>' : '';
+      const ck = d.h > 0 ? 'CK ' + +(d.h * 100).toFixed(2) + '%' : '';
+      const giftCell = k => {
+        if (!(d.n > 0 && d.o)) return ck || k + ' suất';
+        const nm = giftName(d.o), own = /^✓/.test(d.o) && norm(nm).includes(norm(d.b));
+        return esc(k * d.n + ' ' + (own ? 'cùng loại' : niceName(nm))) + (ck ? ' + ' + ck : '');
+      };
+      const table = lvlTable(d, items.map(it => ({ qty: it.qty, P: it.P, gift: giftCell(it.k) })), 'q');
+      return quyAcc('<div class="thr px-q' + (reached ? ' ok' : '') + '"><div class="px-res"><b>' + head + '</b>' + (noteGia ? '<span>' + noteGia + '</span>' : '') + '</div>' + table + stt + '</div>',
+        esc(head.replace(/<[^>]+>/g, '')) + ' · ' + fmt(items[0].P) + '/' + esc(pUnit(d)), 'acc-plain');
     }
     return quyAcc('<div class="thr' + (reached ? ' ok' : '') + '">' + text + chipsHtml(d, items, 'q') + '</div>', text.replace(/<[^>]+>/g, ''), 'acc-plain');
   }
@@ -2670,10 +2717,6 @@ function renderCatalog() {
   $('catalog').innerHTML = shown ? html.join('') : '<div class="empty">Không tìm thấy sản phẩm phù hợp.</div>';
 }
 
-// Sản phẩm gợi ý khi đơn trống: Selsun 1% 100ml và 250ml (sản phẩm ghim ở trang Tính giá)
-function quickPicks() {
-  return DATA.filter(d => /selsun 1% - (100|250)ml/i.test(d.t));
-}
 
 // Đồng bộ trạng thái các nút lọc và thanh "Đang tra"
 function syncFilters() {
@@ -2750,10 +2793,15 @@ function renderCart() {
   if (lines.length) {
     $('cartLines').innerHTML = lines.join('');
   } else {
-    $('cartLines').innerHTML = '<div class="cart-empty"><p>Đơn đang trống. Chọn nhanh:</p><div class="quick">' +
-      quickPicks().map(d => '<button type="button" class="qadd" data-add="' + d.w + '">+ 1 ' + esc(shortName(d)) + '</button>').join('') +
-      '</div><p class="muted">Hoặc mở một nhãn ở trên rồi bấm +.</p></div>';
+    /* Đơn trống: hướng dẫn 3 bước (ý tưởng 3, người dùng chọn 27/11/2026), không bày sẵn sản phẩm hay số 0đ */
+    $('cartLines').innerHTML = '<div class="cart-empty">' + [['Chọn sản phẩm', 'Tìm tên hoặc mở nhãn hàng'], ['Nhập số lượng', 'App tự tính quà và giá cuối'], ['Gửi đơn', 'Sao chép tin nhắn Zalo']]
+      .map((x, i) => '<div class="ce-step"><i>' + (i + 1) + '</i><div><b>' + x[0] + '</b><span>' + x[1] + '</span></div></div>').join('') +
+      '<button type="button" class="ce-go" id="cartStart">Bắt đầu chọn sản phẩm</button></div>';
   }
+  const empty = !lines.length;
+  $('cart').classList.toggle('empty', empty);
+  $('cartClose').textContent = empty ? '✕' : '← Quay lại';
+  $('cartClose').setAttribute('aria-label', empty ? 'Đóng đơn hàng' : 'Quay lại');
   $('selbar').hidden = cnt === 0;
   if (cnt === 0 && filterMode === 'cart') filterMode = 'all';
   syncFilters();
@@ -2959,6 +3007,7 @@ document.addEventListener('click', e => {
   if (b.id === 'qsNext') { openQty(false); openSheet(true); return; }
   if (b.id === 'copy') { openOrderSheet(); return; }
   if (b.id === 'cartClose' || b.id === 'cartBack') { openSheet(false); return; }
+  if (b.id === 'cartStart') { openSheet(false); window.scrollTo(0, 0); const i = document.querySelector('input[type=search]'); if (i) i.focus(); return; }
   if (b.dataset.mxedit !== undefined) { openSheet(false); openMixSheet(b.dataset.mxedit); return; }
   if (b.dataset.swedit !== undefined) {   // Sửa (vuốt dòng): về thẻ sản phẩm, nhảy vào ô số lượng; thẻ chưa hiện thì tìm theo tên
     const w = +b.dataset.swedit; openSheet(false);
