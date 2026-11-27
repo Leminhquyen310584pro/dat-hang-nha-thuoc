@@ -974,6 +974,14 @@ body{font-feature-settings:"tnum" 0}
 .ce-step span{display:block;font-size:12.5px;color:var(--muted)}
 .ce-go{width:100%;min-height:50px;margin-top:10px;border:0;border-radius:13px;background:var(--primary);color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
 
+/* Dòng đang chọn trong bảng (người dùng báo 27/11/2026: chữ trắng trên nền xanh nhạt không đọc được): nền ngọc nhạt, chữ xanh rêu đậm, vạch trái và số lượng trong vòng tròn đặc */
+.tbl .thrbtn.chip.rowb.on{background:#E3F7EE;border-top-color:transparent;box-shadow:inset 6px 0 0 #0A6B47,inset 0 0 0 2px #0A6B47}
+.tbl .thrbtn.chip.rowb.on span,.tbl .thrbtn.chip.rowb.on .tb-g span,.tbl .thrbtn.chip.rowb.on .tb-p b{color:#08432E}
+.tbl .thrbtn.chip.rowb.on .tb-g,.tbl .thrbtn.chip.rowb.on .tb-g span{font-weight:600}
+.tbl .thrbtn.chip.rowb.on .tb-q{position:relative;width:40px;height:40px;border-radius:50%;background:#0A6B47;color:#fff;display:flex;align-items:center;justify-content:center;margin-left:2px}
+.tbl .thrbtn.chip.rowb.on .tb-q::after{content:"✓";position:absolute;right:-7px;top:-6px;width:19px;height:19px;border-radius:50%;background:#F26B3A;color:#fff;border:2px solid #E3F7EE;font-size:11px;line-height:15px;text-align:center}
+.tbl .thrbtn.chip.rowb.on .tb-p i{color:#fff;background:#0A6B47}
+
 </style>
 </head>
 <body>
@@ -1410,6 +1418,57 @@ function niceName(s) {
   if (up <= lo) return s;
   return s.replace(/[A-ZÀ-Ỹ0-9][A-ZÀ-Ỹ0-9+]*/g, w => { if (KEEP_UP[w]) return w; if (/\d/.test(w)) return w.toLowerCase(); return w.charAt(0) + w.slice(1).toLowerCase(); });
 }
+/* Bỏ chữ trùng trong tab Thông tin (người dùng bảo 27/11/2026). Chỉ bỏ ở màn hình, dữ liệu giữ nguyên; luôn giữ câu đầy đủ hơn.
+   Câu khác nhau về con số (tuổi, hàm lượng) hoặc có / không có chữ "không" thì KHÔNG coi là trùng. */
+const dupWords = t => String(t || '').toLowerCase().normalize('NFC').replace(/hàng ngày/g, 'hằng ngày').replace(/[^\p{L}\p{N}%\s]/gu, ' ').split(/\s+/).filter(Boolean);
+function dupKind(a, b) {   // 'same' = gần như một câu; 'in' = a nằm trọn trong b; '' = khác
+  const A = new Set(dupWords(a)), B = new Set(dupWords(b));
+  if (!A.size || !B.size || A.has('không') !== B.has('không')) return '';
+  const inter = [...A].filter(x => B.has(x)).length, nums = S => [...S].filter(x => /\d/.test(x)), na = nums(A), nb = nums(B);
+  if (inter / (A.size + B.size - inter) >= 0.8 && na.join() === nb.join()) return 'same';
+  if (A.size >= 3 && inter === A.size && na.every(x => B.has(x))) return 'in';
+  return '';
+}
+function dedupeInfo(html) {
+  const box = document.createElement('div'); box.innerHTML = html;
+  const items = [];
+  box.querySelectorAll('.pi-s').forEach(sec => {
+    const key = sec.className.split(' ')[1];
+    const plainOne = [...sec.querySelectorAll('.pi-b')].filter(b => !b.children.length);   // mục chỉ có một câu
+    [...sec.querySelectorAll('li, .pi-i'), ...plainOne].forEach(el => {
+      const c = el.cloneNode(true); c.querySelectorAll('small').forEach(e => e.remove());
+      let warn = false; if (key === 'dt') { let u = el.parentElement; warn = !!(u.previousElementSibling && u.previousElementSibling.classList.contains('pi-sh')) || !!(u.previousElementSibling && u.previousElementSibling.previousElementSibling && u.previousElementSibling.previousElementSibling.classList.contains('pi-sh')); }
+      items.push({ el, sec, key, warn, t: c.textContent.trim(), gone: false });
+    });
+  });
+  const drop = x => {
+    if (/^(cd|dt|hd)$/.test(x.key) && !items.some(o => o !== x && !o.gone && o.key === x.key)) return;   // không làm trống Công dụng, Đối tượng, Cách dùng
+    x.gone = true; x.el.remove();
+  };
+  const len = x => dupWords(x.t).length;
+  // trong cùng một mục (trừ "Thành phần và tác dụng": mỗi dòng là một chất khác nhau)
+  items.forEach((a, i) => items.forEach((b, j) => {
+    if (i === j || a.gone || b.gone || a.sec !== b.sec || a.key === 'ch') return;
+    const k = dupKind(a.t, b.t);
+    if (k === 'in' || (k === 'same' && (len(a) < len(b) || (len(a) === len(b) && i > j)))) drop(a);
+  }));
+  // giữa hai mục: [mục giữ, mục bỏ], chỉ khi hai câu gần như giống hệt
+  [['lu', 'dt'], ['cd', 'cdn'], ['dt', 'hd'], ['tp', 'cd'], ['ch', 'cd'], ['cd', 'dt'], ['hd', 'lu']].forEach(([keep, gone]) => {
+    items.filter(x => x.key === gone && !x.gone && (gone !== 'dt' || keep !== 'lu' || x.warn)).forEach(x => {
+      if (items.some(o => o.key === keep && !o.gone && (dupKind(x.t, o.t) === 'same' || (dupKind(x.t, o.t) === 'in' && len(x) >= 0.8 * len(o))))) drop(x);
+    });
+  });
+  // một dòng "Nguồn" chung cho cả khối thành phần thay vì lặp dưới từng chất
+  box.querySelectorAll('.pi-ing').forEach(b => {
+    const src = [], tags = [...b.querySelectorAll('small.pi-tag')];
+    tags.forEach(t => { const v = t.textContent.replace(/^Nguồn:\s*/, ''); if (/chưa có nguồn/i.test(v)) return; v.split(' · ').forEach(p => { if (!src.includes(p)) src.push(p); }); t.remove(); });
+    if (src.length) b.insertAdjacentHTML('beforeend', '<div class="pi-sl">Nguồn: ' + esc(src.join(' · ')) + '</div>');
+  });
+  box.querySelectorAll('ul, ol').forEach(u => { if (!u.children.length) { const h = u.previousElementSibling; if (h && h.classList.contains('pi-sh')) h.remove(); u.remove(); } });
+  box.querySelectorAll('.pi-sh').forEach(h => { if (!h.nextElementSibling) h.remove(); });
+  box.querySelectorAll('.pi-s.lu, .pi-s.cdn').forEach(sec => { const b = sec.querySelector('.pi-b'); if (!b || !b.textContent.trim()) sec.remove(); });
+  return box.innerHTML;
+}
 function infoBlock(x) {
   const NL = String.fromCharCode(10);
   const t = x.tp || {};
@@ -1479,7 +1538,7 @@ function infoBlock(x) {
   const chips = (x.loai ? '<span class="pi-chip a">' + esc(x.loai) + '</span>' : '') + (dang ? '<span class="pi-chip b">' + esc(dang[1]) + '</span>' : '') + (qc ? '<span class="pi-chip b">' + esc(qc) + '</span>' : '');
   const cdc = (t.cong_dung_chat || []).map((l, n) => { const i = l.indexOf(': '); const tg = (t.cdc_nguon && t.cdc_nguon[n]) ? '<small class="pi-tag">Nguồn: ' + esc(t.cdc_nguon[n]) + '</small>' : ''; return i > 0 && i < 90 ? '<div class="pi-i"><b>' + esc(l.slice(0, i)) + '</b> <span>– ' + esc(l.slice(i + 2)) + '</span>' + tg + '</div>' : '<div class="pi-i"><span>' + esc(l) + '</span>' + tg + '</div>'; }).join('');
   const code = rowOf('Mã sản phẩm'), luu = arr(rowOf('Lưu ý')).filter(l => !/^cách dùng\s*:/i.test(l)).join(NL), chd = rowOf('Chỉ định'), bq = rowOf('Bảo quản');
-  return '<div class="thr ti pi"><div class="pi-top"><div><div class="pi-chips">' + chips + '</div></div></div>' +
+  return dedupeInfo('<div class="thr ti pi"><div class="pi-top"><div><div class="pi-chips">' + chips + '</div></div></div>' +
     (hl ? '<div class="pi-hl"><b>Hàm lượng</b><span>' + esc(arr(hl).join(' · ')) + '</span></div>' : '') +
     sec('tp', '🧪', 'Thành phần chính', pills()) +
     (x.khong && x.khong.ds && x.khong.ds.length ? sec('kh', '🚫', x.khong.ghi_so ? 'Công thức ' + x.khong.so + ' KHÔNG' : 'Không chứa',
@@ -1490,7 +1549,7 @@ function infoBlock(x) {
     sec('hd', '📋', 'Cách dùng', usage()) +
     sec('ch', '🔬', 'Thành phần và tác dụng', cdc ? '<div class="pi-b pi-ing">' + cdc + (t.nguon_cong_dung ? '<div class="pi-sl">' + esc(t.nguon_cong_dung) + '</div>' : '') + '</div>' : na) +
     (chd ? sec('cdn', '🎯', 'Chỉ định', plain(chd)) : '') + (luu ? sec('lu', '⚠️', 'Lưu ý', plain(luu)) : '') + (bq ? sec('bq', '📦', 'Bảo quản', plain(bq)) : '') + (code ? sec('mc', '🏷️', 'Mã sản phẩm', plain(code)) : '') +
-    (x.ghi_chu ? '<div class="pi-n">' + esc(x.ghi_chu) + '</div>' : '') + '<div class="pi-n">Nguồn: ' + esc(x.nguon || '') + '</div></div>';
+    (x.ghi_chu ? '<div class="pi-n">' + esc(x.ghi_chu) + '</div>' : '') + '<div class="pi-n">Nguồn: ' + esc(x.nguon || '') + '</div></div>');
 }
 
 // Mốc (số lượng sản phẩm NÀY) đủ điều kiện của một CTKM đặc biệt có giá; 0 nếu không có mốc (pack)
@@ -1762,10 +1821,12 @@ function groupBlock(d, sb) {
 }
 /* ---- Mẫu B (người dùng chọn 26/11/2026): thẻ chương trình đặc biệt CÓ GIÁ = giá niêm yết cạnh giá khi đủ mức, một khung "trả / nhận / quà", rồi "Chọn cách đặt":
    "Một loại này" (+N) và "Ghép nhiều loại" (mở Đơn hỗn hợp), mức lớn hơn gấp trong "Mua nhiều hơn". Điều kiện chương trình giữ nguyên. ---- */
+// quà đang chọn là "tặng cùng loại" (✓) của chính sản phẩm, kể cả khi tên quà viết khác một chút (ADVANCE / ADVANCED)
+function ownGift(d, name) { const e = effOf(DW[d.w]); return /^✓/.test(e.o || '') && norm(giftName(e.o)) === norm(name); }
 function specPartHtml(d, t) {
   const u = d.u || 'sp';
   let m;
-  if ((m = /^CTKM quý: tặng (\d+) (.+)$/.exec(t))) { const same = m[2] === 'cùng loại' || norm(m[2]).includes(norm(d.b)); return '<span class="q">' + esc(m[1] + ' ' + (same ? u + ' tặng cùng loại' : m[2]) + (same ? '' : ' tặng')) + ' (CTKM quý)</span>'; }
+  if ((m = /^CTKM quý: tặng (\d+) (.+)$/.exec(t))) { const same = m[2] === 'cùng loại' || norm(m[2]).includes(norm(d.b)) || ownGift(d, m[2]); return '<span class="q">' + esc(m[1] + ' ' + (same ? u + ' tặng cùng loại' : m[2]) + (same ? '' : ' tặng')) + ' (CTKM quý)</span>'; }
   if ((m = /^CK CTKM quý (.+)$/.exec(t))) return '<span class="q">CK ' + esc(m[1]) + ' (CTKM quý)</span>';
   if ((m = /^CK đặc biệt (.+)$/.exec(t))) return '<span class="s">CK ' + esc(m[1]) + ' (đặc biệt)</span>';
   if ((m = /^tặng (\d+) cùng loại$/.exec(t))) return '<span class="s">' + esc(m[1] + ' ' + u) + ' tặng cùng loại (đặc biệt)</span>';
@@ -1788,11 +1849,10 @@ function specBodyHtml(v) {
   const gift = r => r.parts.map(t => specPartHtml(d, t)).sort((a, b) => (a.indexOf('class="q"') < 0) - (b.indexOf('class="q"') < 0))
     .map(h => p.stack ? h.replace('(CTKM quý)', '(quý)') : h.replace(' (đặc biệt)', '')).join('') || '—';
   const rows = qtys.map(q => { const r = specCalc(d, p, q); return { qty: q, P: r.P, gift: gift(r) }; });
-  const one = specCalc(d, p, need);
-  let h = '<div class="tb-lead">Mua ' + need + ' ' + u + (one.parts.length ? ' · ' + gift(one).replace(/<\/span><span/g, '</span> + <span') : '') + '</div>' + lvlTable(d, rows, prog);
+  let h = lvlTable(d, rows, prog);
   if (n > 0) {
     if (n < need) h += '<div class="tb-now">Đang đặt ' + n + ' ' + u + ': cần thêm ' + (need - n) + ' ' + u + ' để đủ mức.</div>';
-    else { const r = specCalc(d, p, n); h += '<div class="tb-now thr-ok">✓ Đang đặt ' + n + ' ' + u + (r.P != null ? ' · giá cuối ' + fmt(r.P) + '/' + pu : '') + ' · trả ' + fmt(r.pay) + '</div>'; }
+    else { const r = specCalc(d, p, n); h += '<div class="tb-now thr-ok">✓ Đang đặt ' + n + ' ' + u + (r.P != null && !qtys.includes(n) ? ' · giá cuối ' + fmt(r.P) + '/' + pu : '') + ' · trả ' + fmt(r.pay) + '</div>'; }   /* số mua trùng một dòng thì giá đã có trong bảng */
   }
   const cr = p.stack && n >= need ? caringOf(d) : null;
   if (cr) { const miss = [['hi', cr.hi], ['lo', cr.lo]].filter(([k, rl]) => rl && !(k === 'hi' && isCaringRule(rl)) && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]);
@@ -1943,7 +2003,7 @@ function thrLine(d0, n) {
       const ck = d.h > 0 ? 'CK ' + +(d.h * 100).toFixed(2) + '%' : '';
       const giftCell = k => {
         if (!(d.n > 0 && d.o)) return ck || k + ' suất';
-        const nm = giftName(d.o), own = /^✓/.test(d.o) && norm(nm).includes(norm(d.b));
+        const nm = giftName(d.o), own = /^✓/.test(d.o);
         return esc(k * d.n + ' ' + (own ? 'cùng loại' : niceName(nm))) + (ck ? ' + ' + ck : '');
       };
       const table = lvlTable(d, items.map(it => ({ qty: it.qty, P: it.P, gift: giftCell(it.k) })), 'q');
