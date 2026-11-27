@@ -1697,7 +1697,9 @@ const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/
 function subFor(d, key, cond) { return allSubs().find(x => x.prog === key && x.members.has(d.w) && x.members.size > 1 && (cond === undefined || x.cond === cond)) || null; }
 
 /* ---- Ý 2 accordion (người dùng chọn 24/11/2026): mỗi luật / chương trình là một thẻ; chỉ thẻ đang chọn mở đầy đủ, thẻ còn lại thu thành một dòng tóm tắt. Điều kiện nguyên văn của công ty luôn hiện ở cuối thẻ đang mở. */
-function rulesOf(d) { return String(d.d || '').split(/\n+/).map(s => s.replace(/^\s*[*•]\s*/, '').replace(/\s*Ò\s*/g, ' => ').trim()).filter(Boolean); }
+// bỏ dòng luật ghi "(không áp dụng cho …)" đúng sản phẩm đang xem (người dùng đối chiếu app công ty 27/11/2026: Selsun 1.8 chỉ có luật nhóm Dược phẩm và TBYT)
+function ruleExcluded(d, line) { const ex = line.match(/\(không áp dụng cho ([^)]+)\)/i); return !!ex && ex[1].split(/\s*,\s*|\s+và\s+/i).some(nm => normK(d.t).includes(normK(nm))); }
+function rulesOf(d) { return String(d.d || '').split(/\n+/).map(s => s.replace(/^\s*[*•]\s*/, '').replace(/\s*Ò\s*/g, ' => ').trim()).filter(Boolean).filter(r => !ruleExcluded(d, r)); }
 const isGrpRule = r => /bất kỳ|kết hợp|các sản phẩm|dòng /i.test(r);
 const origBox = (lines, extra) => lines.length || extra ? '<div class="orig"><b>Điều kiện chương trình</b>' + lines.map(r => '<p>' + esc(r.replace(/\s*=\s*=>\s*|\s*=>\s*/g, ' ⇒ ')) + '</p>').join('') + (extra || '') + '</div>' : '';
 function accWrap(d, tab, id, kind, title, chip, summary, body, firstId) {
