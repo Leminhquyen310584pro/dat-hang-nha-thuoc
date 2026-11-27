@@ -1823,7 +1823,7 @@ function groupBlock(d, sb) {
     '<div class="px-gn">' + (st.ok ? '✓ Cả đơn đang có <b>' + esc(fmtMix(sb, st.t)) + '</b> · đủ mốc' : 'Cả đơn đang có <b>' + esc(fmtMix(sb, st.t)) + '</b> / ' + esc(fmtMix(sb, sb.thr)) + ' · còn thiếu <b>' + esc(fmtMix(sb, st.rest)) + '</b>') + '</div>' +
     '<div class="px-gc">' + (sb.cum ? 'Cộng dồn: đơn này góp, các đơn khác cộng thêm' : 'Phải đủ trong MỘT đơn hàng') + '</div>' +
     '<div class="px-ga">' + (addN > 0 ? '<button type="button" class="px-add" data-padd="' + d.w + '" data-n="' + addN + '">+ Thêm ' + addN + ' ' + du + '</button>' : '') +
-    '<button type="button" class="px-mix" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '">Trộn sản phẩm khác ›</button></div></div>';
+    '<button type="button" class="px-mix" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '">Đơn Hỗn Hợp ›</button></div></div>';
 }
 /* ---- Mẫu B (người dùng chọn 26/11/2026): thẻ chương trình đặc biệt CÓ GIÁ = giá niêm yết cạnh giá khi đủ mức, một khung "trả / nhận / quà", rồi "Chọn cách đặt":
    "Một loại này" (+N) và "Ghép nhiều loại" (mở Đơn hỗn hợp), mức lớn hơn gấp trong "Mua nhiều hơn". Điều kiện chương trình giữ nguyên. ---- */
