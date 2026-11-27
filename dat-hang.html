@@ -1878,7 +1878,7 @@ function specBodyHtml(v) {
   const cr = p.stack && n >= need ? caringOf(d) : null;
   if (cr) { const miss = [['hi', cr.hi], ['lo', cr.lo]].filter(([k, rl]) => rl && !(k === 'hi' && isCaringRule(rl)) && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]);
     if (miss.length) h += '<div class="spc-s warn-t">Còn quà CTKM quý (' + (isCaringRule(cr.hi) ? 'dòng Caring' : 'luật nhóm rửa mặt/tẩy trang') + ' ' + miss.map(([k, rl]) => fmt(rl.thr)).join(', ') + ') chưa chọn: chọn ở thẻ CTKM quý để cộng vào giá.</div>'; }
-  if (sb) { const st = subStat(sb); h += '<div class="pb-ways"><button type="button" class="px-mix pb-way" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '"><small>Ghép nhiều loại</small><b>Chọn ›</b><small>' +
+  if (sb) { const st = subStat(sb); h += '<div class="pb-ways"><button type="button" class="px-mix pb-way" data-pmix="' + d.w + '" data-sid="' + esc(sb.id) + '"><b>Đơn Hỗn Hợp ›</b><small>' +
     (st.ok ? '✓ đơn đã đủ mốc' : (st.t > 0 ? 'còn thiếu ' : 'đủ ') + esc(fmtMix(sb, st.t > 0 ? st.rest : sb.thr))) + '</small></button></div>'; }
   return h;
 }
