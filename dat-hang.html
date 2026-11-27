@@ -988,6 +988,15 @@ body{font-feature-settings:"tnum" 0}
 .tbl .thrbtn.chip.rowb.on .tb-g>span{color:#08432E}
 .px-one{font-weight:700;font-size:13px;margin:8px 0 2px}
 
+/* Bỏ MỌI vạch màu bên trái (người dùng bảo 27/11/2026): các khối chỉ còn viền đều bốn phía */
+.card,.card.in{box-shadow:var(--shadow)}
+.card.in{box-shadow:0 0 0 1px var(--primary-soft),var(--shadow)}
+.mx-cond,.mx-cond.q,.mx-cond.d{border-left:0;border-radius:8px}
+.mx-row,.mx-row.st-short,.mx-row.st-near,.mx-row.st-ok,.mixbar.st-short,.mixbar.st-near,.mixbar.st-ok{border-left:0}
+.thr.px,.thr.dbt,.pack-row,.spc,.cfinal.excl,.fb.muted.excl,.pi-i{border-left-width:1px;border-left-color:var(--line)}
+.acc-b>.thr,.acc-b>.thr.px,.acc-b>.px-g{border-left:0}
+.tbl .thrbtn.chip.rowb.on{box-shadow:inset 0 0 0 2px #0A6B47}
+
 </style>
 </head>
 <body>
