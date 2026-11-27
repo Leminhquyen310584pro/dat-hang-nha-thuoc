@@ -2065,8 +2065,9 @@ function thrLine(d0, n) {
 // Nhãn lớn (giống app công ty) → các nhóm nhỏ trong bảng giá. Nhóm chưa xếp được vào nhãn nào thì tự thành nhãn riêng.
 // Thứ tự quan trọng: nhãn đứng trước được ưu tiên khi tên sản phẩm khớp nhiều nhãn (vd Hada Labo Acne Care → HADALABO, không vào ACNES).
 // re: khớp theo TÊN sản phẩm; groups: dự phòng theo nhóm bảng giá.
+// Ba nhóm của bảng giá hiện liền một chỗ, đúng như Excel (người dùng chốt 27/11/2026), đứng đầu danh mục theo số nhóm; còn lại xếp theo nhãn hàng.
+const SECTIONS = { '1. Thuốc nhỏ mắt': 'THUỐC NHỎ MẮT', '2. Dược phẩm khác & TBYT': 'DƯỢC PHẨM KHÁC & TBYT', '5. Thực phẩm chức năng': 'THỰC PHẨM CHỨC NĂNG' };
 const BRANDS = [
-  { name: 'EYEDROPS', re: /v\.?\s?rohto|rohto ab|rohto dry aid|dry ?eye|mineral tear/i, groups: ['1. Thuốc nhỏ mắt'] },
   { name: 'REMOS', re: /remos/i, groups: ['6. Remos'] },
   { name: 'SELSUN', re: /selsun/i, groups: ['4. Selsun'] },
   { name: 'MEGUMI', re: /megumi/i, groups: ['3. Giải pháp ngăn rụng tóc'] },
@@ -2078,9 +2079,7 @@ const BRANDS = [
   { name: 'OXY', re: /\boxy\b/i, groups: [] },
   { name: 'SUNPLAY', re: /sunplay|skin aqua|super block|super cool|whitening uv|baby mild|uv body|tone up/i, groups: ['12. Outdoor / Skin Aqua - Sunplay/Oxy'] },
   { name: 'REFRE', re: /refre/i, groups: ['13. Refre'] },
-  { name: 'HAPPY EVENT', re: /happy event/i, groups: ['9. Happy Event'] },
-  { name: 'FUNCTIONAL FOOD', re: /blossomy|alcofree|lutein|clear vision/i, groups: ['5. Thực phẩm chức năng'] },
-  { name: 'DHP-DHX', re: /deep heat/i, groups: ['2. Dược phẩm khác & TBYT'] }   // DEEP HEAT và EXTRA DEEP HEAT (tên nhãn theo app công ty)
+  { name: 'HAPPY EVENT', re: /happy event/i, groups: ['9. Happy Event'] }
 ];
 
 // Sản phẩm mới của JAPAN PRODUCTS (theo app công ty, 16/11/2026): chưa có giá và chương trình nên chưa có trong Excel.
@@ -2093,6 +2092,7 @@ const SOON = [
 
 // Nhãn của một sản phẩm: ưu tiên theo TÊN, rồi mới theo nhóm bảng giá
 function brandOf(d) {
+  if (SECTIONS[d.g]) return SECTIONS[d.g];
   const byName = BRANDS.find(b => b.re && b.re.test(d.t));
   if (byName) return byName.name;
   const byGroup = BRANDS.find(b => b.groups.includes(d.g));
@@ -2141,8 +2141,9 @@ function brandTree() {
       Object.keys(ab.items).forEach(g => { if (g !== gl && g !== gm) delete ab.items[g]; });
     }
   }
-  // xếp theo vần A–Z như app công ty
-  return order.sort((a, b) => map[a].name.localeCompare(map[b].name, 'vi')).map(k => map[k]);
+  // ba nhóm theo Excel đứng đầu, các nhãn còn lại xếp theo vần A–Z như app công ty
+  const top = Object.values(SECTIONS), at = k => { const i = top.indexOf(k); return i < 0 ? top.length : i; };
+  return order.sort((a, b) => at(a) - at(b) || map[a].name.localeCompare(map[b].name, 'vi')).map(k => map[k]);
 }
 
 // Nhãn đang mở (bấm để gập/mở). Khi đang tìm hoặc lọc thì các nhãn có kết quả tự mở.
@@ -2808,7 +2809,8 @@ function renderCatalog() {
       const items = b.items[g].filter(matches);
       if (!items.length) return '';
       shown += items.length; members.push(...items);
-      return '<div class="sub"><div class="sub-h">' + esc(g) + '<small>' + items.length + '</small></div>' +
+      // tiêu đề nhỏ trùng tên mục thì bỏ (ba nhóm theo Excel)
+      return '<div class="sub">' + (SECTIONS[g] === b.name ? '' : '<div class="sub-h">' + esc(g) + '<small>' + items.length + '</small></div>') +
         '<div class="cards">' + items.map(d => card(d)).join('') + '</div></div>';
     }).join('');
     if (!subHtml) return;
