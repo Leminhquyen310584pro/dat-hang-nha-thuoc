@@ -1013,6 +1013,11 @@ body{font-feature-settings:"tnum" 0}
 .ps-sum{min-width:0;display:flex;flex-direction:column}.ps-sum small{font-size:12px;color:var(--muted);line-height:1.35}.ps-sum strong{font-size:19px;color:var(--ink)}
 .ps-done{flex:none;min-height:44px;padding:0 22px;border:0;border-radius:12px;background:var(--primary);color:#fff;font:700 14px var(--f);cursor:pointer}
 @media (min-width:1024px){.ps-card:has(.ps-foot){padding-bottom:0}}
+/* Phương án 1 màn Đơn hỗn hợp (28/11/2026): quà gom theo chương trình */
+.gbox{border-radius:12px;padding:10px;margin:8px 0;font-size:13px}.gbox h5{margin:0 0 4px;font-size:11px;letter-spacing:.04em}
+.gbox.q{background:var(--quy-soft)}.gbox.q h5{color:var(--quy-ink)}.gbox.s{background:#FDEBEE}.gbox.s h5{color:var(--dbt-ink)}
+.gbox .rs-gift{background:none;padding:3px 0;margin:0;border-radius:0;color:var(--ink)}.gbox .rs-gift small{color:var(--muted)}.gbox .rs-pick{margin-top:4px}
+.ms-btns{flex:none}.ms-btns .ms-apbtn{white-space:nowrap}
 
 </style>
 </head>
@@ -2469,11 +2474,17 @@ function mixPinfoResult(sub, usedWs) {
   const st = subStat(sub), k = sub.max ? Math.min(st.k, sub.max) : st.k;
   let reqMiss = null;
   if (x.bb) { const kw = norm(String(x.bb).replace(/^1\s*/, '')); if (!DATA.some(d => (qtyOf[d.w] || 0) > 0 && norm(d.t).includes(kw))) reqMiss = x.bb; }
+  /* CTKM quý của nhóm ghép từ 2 loại trở lên: GỘP cả nhóm rồi chia quà theo tiền hàng (người dùng chốt cách 2 ngày 28/11/2026); sản phẩm còn lại tính riêng như cũ.
+     Khách trả = tiền hàng sau CK, KHÔNG trừ giá trị quà (quà là hàng tặng thêm). */
+  const grpWs = usedWs.filter(w => RULES.some(r => r.members.includes(w) && usedWs.filter(v => r.members.includes(v)).length >= 2));
+  const rq = grpWs.length ? mixRuleResult(null, grpWs) : null;
   const lines = usedWs.map(w => {
-    const d = DW[w], q = qtyOf[w], r = calcQuy(d, q);
-    return { d, q, gross: q * d.c, L: r.L, alloc: 0, N: r.N, og: null, qtyO: Math.max(0, (r.units || q) - q), miss: r.miss, P: r.miss ? null : r.P, pay: r.pay, giftName: r.giftName };
+    const d = DW[w], q = qtyOf[w], rl = rq && rq.lines.find(x => x.d.w === w);
+    if (rl) return Object.assign({}, rl, { d, pay: rl.L });
+    const r = calcQuy(d, q);
+    return { d, q, gross: q * d.c, L: r.L, alloc: 0, N: r.N, og: null, qtyO: Math.max(0, (r.units || q) - q), miss: r.miss, P: r.miss ? null : r.P, pay: r.L, giftName: r.giftName };
   });
-  return { kind: 'p', ok: k > 0 && !reqMiss, suat: k, giftN: reqMiss ? 0 : k, giftLabel: x.ten, reqMiss, max: sub.max, cum: sub.cum, T: st.t, lines,
+  return { kind: 'p', ok: k > 0 && !reqMiss, suat: k, giftN: reqMiss ? 0 : k, giftLabel: x.ten, reqMiss, max: sub.max, cum: sub.cum, T: st.t, lines, qcards: rq ? rq.cards.filter(c => c.ok) : [],
     gross: lines.reduce((a, l) => a + l.gross, 0), pay: lines.reduce((a, l) => a + l.pay, 0), warn: lines.some(l => l.miss) ? 'Thiếu giá quà của CTKM quý' : null };
 }
 function mixProgResult(sub, usedWs) {
@@ -2525,13 +2536,14 @@ function mixGiftRows(r) {
   const out = [];
   const own = l => { if (l.tierGift) out.push({ n: l.tierGift.n, name: l.tierGift.name, note: 'CTKM quý' }); if (l.N > 0 && l.og) out.push({ n: l.N, name: l.og.ty === 's' ? shortName(l.d) : giftName(l.og.l), note: l.og.ty === 's' ? 'cùng loại' : '' }); };
   if (r.kind === 'p') {
-    if (r.ok && r.giftN > 0) out.push({ n: r.giftN, name: r.giftLabel, note: 'không tính vào giá' + (r.max ? ' · tối đa ' + r.max + ' set mỗi khách' : '') + (r.cum ? ' · cộng dồn: các đơn khác cộng vào' : ' · phải đủ trong 1 đơn') });
-    r.lines.forEach(l => { if (l.N > 0) out.push({ n: l.N, name: l.qtyO > 0 ? shortName(l.d) : giftName(l.giftName || ''), note: 'CTKM quý' }); });
+    if (r.ok && r.giftN > 0) out.push({ sp: true, n: r.giftN, name: r.giftLabel, note: 'không tính vào giá' + (r.max ? ' · tối đa ' + r.max + ' set mỗi khách' : '') + (r.cum ? ' · cộng dồn: các đơn khác cộng vào' : ' · phải đủ trong 1 đơn') });
+    (r.qcards || []).forEach(c => { if (c.giftN > 0 && c.opt) out.push({ n: c.giftN, name: giftName(c.opt.label), card: c }); });
+    r.lines.forEach(l => { if (l.og !== null && l.og !== undefined) { own(l); return; } if (l.N > 0) out.push({ n: l.N, name: l.qtyO > 0 ? shortName(l.d) : giftName(l.giftName || '') }); });
   } else if (r.kind === 'q') {
     r.cards.filter(c => c.ok && c.giftN > 0 && c.opt).forEach(c => out.push({ n: c.giftN, name: giftName(c.opt.label), card: c }));
     r.lines.forEach(own);
   } else {
-    if (r.ok && r.giftN > 0) out.push({ n: r.giftN, name: r.giftLabel, note: 'CTKM đặc biệt' });
+    if (r.ok && r.giftN > 0) out.push({ sp: true, n: r.giftN, name: r.giftLabel, note: 'CTKM đặc biệt' });
     (r.qcards || []).forEach(c => { if (c.giftN > 0 && c.opt) out.push({ n: c.giftN, name: giftName(c.opt.label), note: 'CTKM quý (cộng thêm)', card: c }); });
     r.lines.forEach(own);
   }
@@ -2541,13 +2553,18 @@ function mixResultHtml(sub) {
   const r = mixResult(sub);
   if (!r) return '';   // chưa chọn sản phẩm nào: không hiện gì (danh sách sản phẩm ngay bên dưới)
   const gifts = mixGiftRows(r);
-  const body = r.lines.map(l => '<tr class="rs-line"><td>' + esc(shortName(l.d)) + (l.qtyO > 0 ? ' <small>+ tặng ' + l.qtyO + '</small>' : '') + '</td><td class="c">' + l.q + '</td><td class="r"><b>' + (l.P != null ? fmt(l.P) : '—') + '</b><small>/' + esc(pUnit(l.d)) + '</small></td></tr>').join('') +
-    gifts.map(g => {
-      const opts = g.card ? (g.card.r.opts || []) : [];
-      return '<tr class="rs-gift"><td><b>Tặng ' + g.n + ' ' + esc(g.name) + '</b>' + (g.note ? ' <small>· ' + esc(g.note) + '</small>' : '') + '</td><td class="c">+' + g.n + '</td><td class="r">quà</td></tr>' +
-        (opts.length > 1 ? '<tr class="rs-pick"><td colspan="3"><small>Đổi quà:</small><div class="rs-opts">' + opts.map(o => '<button type="button" class="rs-opt' + (o.gi === g.card.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(g.card.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div></td></tr>' : '');
-    }).join('');
+  const body = r.lines.map(l => '<tr class="rs-line"><td>' + esc(shortName(l.d)) + '</td><td class="c">' + l.q + '</td><td class="r"><b>' + (l.P != null ? fmt(l.P) : '—') + '</b><small>/' + esc(pUnit(l.d)) + '</small></td></tr>').join('');
   const rows = ['<table class="mt-tb"><thead><tr><th>Sản phẩm</th><th class="c">SL</th><th class="r">Giá cuối</th></tr></thead><tbody>' + body + '</tbody></table>'];
+  /* Phương án 1 (người dùng chọn 28/11/2026): quà gom theo chương trình, khung CTKM quý (xanh) rồi khung CTKM đặc biệt (hồng, "cộng thêm" khi được cộng chung) */
+  const giftLine = g => {
+    const opts = g.card ? (g.card.r.opts || []) : [];
+    return '<div class="rs-gift"><b>Tặng ' + g.n + ' ' + esc(g.name) + '</b>' + (g.note && g.note.indexOf('CTKM') !== 0 ? ' <small>· ' + esc(g.note) + '</small>' : '') +
+      (opts.length > 1 ? '<div class="rs-pick"><small>Đổi quà:</small><div class="rs-opts">' + opts.map(o => '<button type="button" class="rs-opt' + (o.gi === g.card.opt.gi ? ' on' : '') + '" data-mxpick="' + esc(g.card.r.key) + '|' + o.gi + '">' + esc(giftName(o.label)) + '</button>').join('') + '</div></div>' : '') + '</div>';
+  };
+  const gq = gifts.filter(g => !g.sp), gs = gifts.filter(g => g.sp), cardsQ = r.kind === 'q' ? r.cards : (r.qcards || []);
+  const suat = cardsQ.filter(c => c.ok && c.giftN > 0);
+  if (gq.length) rows.push('<div class="gbox q"><h5>QUÀ CTKM QUÝ' + (suat.length === 1 ? ' · cả nhóm được ' + suat[0].suat + ' suất' : '') + '</h5>' + gq.map(giftLine).join('') + '</div>');
+  if (gs.length) rows.push('<div class="gbox s"><h5>QUÀ CTKM ĐẶC BIỆT' + (r.kind !== 'q' && sub.stack ? ' · cộng thêm' : '') + '</h5>' + gs.map(giftLine).join('') + '</div>');
   rows.push('<div class="rs-row"><span>Tiền hàng</span><b>' + fmt(r.gross) + '</b></div>');
   const notes = [];
   if (r.kind === 'd' && r.ok && r.ck > 0) notes.push('<div class="rs-ck">Đã trừ CK đặc biệt ' + +(r.ck * 100).toFixed(2) + '% (' + fmt(r.pay / (1 - r.ck) - r.pay) + ')</div>');
@@ -2559,7 +2576,7 @@ function mixResultHtml(sub) {
   if (r.kind === 'p') {
     if (r.reqMiss) notes.push('<div class="rs-warn">⚠ Đủ mốc tiền nhưng thiếu điều kiện bắt buộc: ' + esc(r.reqMiss) + '</div>');
     else if (!r.ok) notes.push('<div class="rs-none">Chưa đủ mốc: chưa được tặng ' + esc(r.giftLabel) + '.</div>');
-    notes.push('<div class="rs-none">Quà không quy ra tiền nên giá từng sản phẩm không đổi (giữ giá CTKM quý của sản phẩm).</div>');
+    notes.push('<div class="rs-none">Quà không quy ra tiền không làm đổi giá; giá cuối là giá theo CTKM quý.</div>');
   } else if (!gifts.length && !notes.length) notes.push('<div class="rs-none">Chưa đủ mốc: giá từng sản phẩm chưa có ưu đãi của nhóm.</div>');
   rows.push(notes.join(''));
   if (r.warn) rows.push('<div class="rs-warn">⚠ ' + esc(r.warn) + ': chưa tính được giá cuối.</div>');
@@ -2692,7 +2709,7 @@ const sepLine = l => { const d = DW[l.d.w]; return bothCalc(d, l.q) || calcQuy(d
 function mixBetter(res) {
   let g = 0, r = 0;
   for (const l of res.lines) { const x = sepLine(l); if (l.P == null || x.P == null) return false; g += l.P * l.q; r += x.P * l.q; }
-  return g < r - 0.5;
+  return g <= r + 1;   // bằng nhau thì vẫn ghép: chốt "cả đơn được bao nhiêu quà thì chia đều theo tiền" (28/11/2026)
 }
 function mixClash(s, res) {   // các nhóm khác đang dùng sản phẩm của nhóm này
   const MC = claimMap(), out = [];
@@ -2703,7 +2720,12 @@ const mixDrop = id => { const i = mixApplied.indexOf(id); if (i >= 0) mixApplied
 function mixAutoApply(s) {
   const res = mixResult(s);
   if (!res) { mixOptOut.delete(s.id); mixForced.delete(s.id); return; }
-  if (res.kind === 'p') return;
+  if (res.kind === 'p') {   // đưa giá gộp CTKM quý của nhóm vào phiếu để phiếu và màn này cùng một số (cách 2, 28/11/2026)
+    (res.qcards || []).forEach(c => { const id = 'r' + RULES.indexOf(c.r), sb = allSubs().find(x => x.id === id), rr = sb && mixResult(sb);
+      if (!rr || rr.lines.length < 2 || !mixOk(rr) || mixApplied.includes(id) || mixOptOut.has(id)) return;
+      mixClash(sb, rr).forEach(x => mixDrop(x.id)); mixApplied.push(id); saveCart(); renderCart(); });
+    return;
+  }
   const able = res.lines.length >= 2 && mixOk(res), good = able && (mixForced.has(s.id) || mixBetter(res));
   if (mixApplied.includes(s.id)) { if (able && !good) { mixDrop(s.id); saveCart(); renderCart(); } return; }
   if (!good || mixOptOut.has(s.id)) return;
@@ -3113,7 +3135,7 @@ document.addEventListener('click', e => {
   if (b.dataset.mxon !== undefined) { const id = b.dataset.mxon, g = allSubs().find(x => x.id === id), res = g && mixResult(g); mixOptOut.delete(id); mixForced.add(id); if (res) mixClash(g, res).forEach(c => mixDrop(c.id)); if (!mixApplied.includes(id)) mixApplied.push(id); msNote = ''; saveCart(); renderCart(); msUpdate(); return; }
   if (b.dataset.mxoff !== undefined) { mixOptOut.add(b.dataset.mxoff); mixForced.delete(b.dataset.mxoff); mixDrop(b.dataset.mxoff); msNote = ''; saveCart(); renderCart(); msUpdate(); return; }
   if (b.dataset.mxpick !== undefined) {   // đổi quà của luật nhóm
-    const [k, gi] = b.dataset.mxpick.split('|'); mixPick[k] = +gi; msUpdate(); return;
+    const [k, gi] = b.dataset.mxpick.split('|'); mixPick[k] = +gi; msUpdate(); saveCart(); renderCart(); return;
   }
   if (b.dataset.mx !== undefined) {   // thanh mốc: mở rộng / thu gọn "Xem tất cả mốc"
     const k = b.dataset.mx; if (openMix.has(k)) openMix.delete(k); else openMix.add(k);
