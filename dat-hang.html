@@ -1431,7 +1431,11 @@ const VARIANTS = { 179: [
         { id: 'rsw', hd: 'Lăn 40ml', label: 'Refre Roll On Sweetie - Huong Sweetie 40ml' }, { id: 'rde', label: 'Refre Roll On Deluxe - Huong Deluxe 40ml' }, { id: 'ril', label: 'Lan Refre Whitening Perfume In Love (Huong Tinh Yeu) 40ml' }],
   189: [{ id: 'mgt', hd: 'Xịt 30ml', label: 'Refre Mist Natural Green Tea - Huong Tra Xanh 30ml' }, { id: 'mro', label: 'Refre Natural Rosemary - Huong Thao 30ml' }, { id: 'mrm', label: 'Refre Natural Rosa Magnolia (Hong Moc Lan) 30ml' }, { id: 'mwo', label: 'Refre Natural Woody (Huong Go) 30ml' },
         { id: 'rgt', hd: 'Lăn 40ml', label: 'Lan Refre Natural Green Tea - Huong Tra Xanh 40ml' }, { id: 'rrm', label: 'Lan Refre Natural Rosa Magnolia (Hong Moc Lan) 40ml' }, { id: 'rro', label: 'Lan Refre Natural Rosemary - Huong Thao 40ml' }, { id: 'rwo', label: 'Lan Refre Natural Woody (Huong Go) 40ml' }],
-  190: [{ id: 'mo', hd: 'Xịt 30ml', label: 'Xit Refre Lactone Moisturizing 30ml' }, { id: 'wh', label: 'Xit Refre Lactone Whitening 30ml' }] };
+  190: [{ id: 'mo', hd: 'Xịt 30ml', label: 'Xit Refre Lactone Moisturizing 30ml' }, { id: 'wh', label: 'Xit Refre Lactone Whitening 30ml' }],
+  /* REMOS người lớn theo mùi (người dùng chốt 28/11/2026: trộn mùi trong cùng một mã vẫn là mua cùng loại). Mùi theo catalogue công ty: xịt có Lavender, Sả Chanh; kem thêm Cam. Remos Baby chỉ có khuynh diệp nên không chia. */
+  53: [{ id: 'la', label: 'Remos kem 70g - Lavender' }, { id: 'sa', label: 'Remos kem 70g - Sả Chanh' }, { id: 'ca', label: 'Remos kem 70g - Cam' }],
+  54: [{ id: 'la', label: 'Remos xịt 70ml - Lavender' }, { id: 'sa', label: 'Remos xịt 70ml - Sả Chanh' }],
+  55: [{ id: 'la', label: 'Remos xịt 150ml - Lavender' }, { id: 'sa', label: 'Remos xịt 150ml - Sả Chanh' }] };
 const vqOf = {};   // mã sản phẩm -> { id mã: số lượng }
 const VQ_KEY = 'dat-hang-bienthe-v1';
 const varSum = w => Object.values(vqOf[w] || {}).reduce((a, b) => a + b, 0);
