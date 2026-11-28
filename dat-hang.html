@@ -1285,7 +1285,44 @@ function caringPicks(d, q) {
   return out;
 }
 // Mức quà đang đạt của 11 sản phẩm trong QTIER (mức cao nhất không vượt số mua); null = dùng quà trong Excel như cũ
+/* Quà khác theo chữ công ty mà Excel chỉ ghi một cách (người dùng bảo bổ sung 28/11/2026): Bộ Nose Wash 400ml mua 3 (New V.Rohto / Vitamin / Remos IB);
+   "mua kết hợp 4" Remos Baby, Remos IR; "mua 4 bất kỳ" Refre. f = số mua để được 1 suất của quà này (Remos Baby 150ml = 2 đơn vị nên 2 chai).
+   Mỗi lúc CHỈ MỘT loại quà (không cộng hai cách), phần dư không được tặng. Mặc định giữ quà đang dùng; best (mức mua riêng của Nose Wash) lấy quà giá trị cao hơn. */
+const ALT = {
+  57: { f: 3, best: true, gifts: ['⇄ NEW V.ROHTO (giá tặng chéo)', '⇄ V.ROHTO VITAMIN (giá tặng chéo)', '⇄ REMOS IB (giá tặng chéo)'] },
+  50: { f: 4, gifts: ['⇄ REMOS BABY SPRAY 70ML (giá tặng chéo)'] },
+  52: { f: 2, gifts: ['⇄ REMOS BABY SPRAY 70ML (giá tặng chéo)'] },
+  53: { f: 4, gifts: ['⇄ REMOS IR 70ML (giá tặng chéo)'] },
+  55: { f: 4, gifts: ['⇄ REMOS IR 70ML (giá tặng chéo)'] },
+  189: { f: 4, gifts: ['⇄ REFRE WHITENING (MIST / ROLL) (giá tặng chéo)'] },
+  190: { f: 4, gifts: ['⇄ REFRE WHITENING (MIST / ROLL) (giá tặng chéo)'] }
+};
+// các cách nhận quà đang đủ mức ở số mua q: quà trong Excel (base) rồi các quà bổ sung
+function altCands(w, q) {
+  const a = ALT[w], d = DW[w]; if (!a || !d) return [];
+  const out = [], add = (label, f, base) => {
+    const gi = GIFTS.findIndex(g => g.l === label), k = f > 0 ? Math.floor(q / f + 1e-9) : 0;
+    if (gi >= 0 && k > 0) out.push({ gi, f, k, base, value: k * (GIFTS[gi].ty === 's' ? d.c : (GIFTS[gi].p || 0)) });
+  };
+  add(d.o, d.f, true);
+  a.gifts.forEach(l => add(l, a.f, false));
+  return out;
+}
+function altPick(w, q) {
+  const c = altCands(w, q); if (!c.length) return null;
+  const chosen = c.find(x => x.gi === gkOf[w]); if (chosen) return chosen;
+  if (ALT[w].best) return c.reduce((m, x) => x.value > m.value ? x : m);
+  return c[0];
+}
+const altName = (d, gi) => GIFTS[gi].ty === 's' ? 'cùng loại' : niceName(giftName(GIFTS[gi].l));
+// hàng nút đổi quà (chỉ khi đang có từ 2 cách)
+function altBtns(w, n) {
+  const c = altCands(w, n); if (c.length < 2) return '';
+  const cur = altPick(w, n);
+  return '<div class="cf-row ok">✓ Chọn quà CTKM quý (chỉ một loại)</div><div class="cx-btns">' + c.map(x => '<button type="button" class="cxb gkb' + (cur && cur.gi === x.gi ? ' on' : '') + '" data-gk="' + w + ':' + x.gi + '">Tặng ' + x.k + ' ' + esc(altName(DW[w], x.gi)) + '</button>').join('') + '</div>';
+}
 function qtierAt(d, q) {
+  if (!d._opt && ALT[d.w]) { const a = altPick(d.w, q); if (a && !a.base) return { f: a.f, opts: [{ gi: a.gi, n: 1 }] }; }
   const x = !d._opt && QTIER[d.w];
   if (!x || (x.base && q >= d.f)) return null;
   return x.tiers.filter(t => q >= t.f).pop() || null;
@@ -1715,6 +1752,7 @@ function finalLine(d0, n) {
       const bh = go.map(o => '<button type="button" class="cxb gkb' + (sel === o.gi ? ' on' : '') + '" data-gk="' + d.w + ':' + o.gi + '">' + (k > 0 ? 'Tặng ' + k * o.n + ' ' : '') + esc(o.same ? 'cùng loại' : giftName(GIFTS[o.gi].l).replace(/\s*\(.*$/, '')) + '</button>').join('');
       rows.push('<div class="cf-row ' + (k > 0 ? 'ok' : 'mute') + '">' + (k > 0 ? '✓ ' : '') + 'Chọn quà CTKM quý (mỗi suất 1 quà)' + (k > 0 ? ': ' + k + ' suất' : ': chưa đủ mức') + '</div><div class="cx-btns">' + bh + '</div>');
     } }
+  if (!excl && ALT[d.w]) { const ab = altBtns(d.w, n); if (ab) rows.push(ab); }
   const canPrice = !r.miss && r.P != null;
   const pu = esc(pUnit(d)), M = d.m || 1;
   const priceTxt = canPrice ? fmt(r.P) + '<small> /' + pu + '</small>' : '';
@@ -2108,8 +2146,14 @@ function thrLine(d0, n) {
   const low = QTIER[d.w] && QTIER[d.w].base ? QTIER[d.w].tiers.map(t => {   // mức mua thấp hơn mức của bảng (Remos Baby mua 2, hộp Selsun 60 gói mua 1)
     const r = calcQuy(d0, t.f); return '<div class="thr-ok">Mua ' + t.f + ' ' + u + ': tặng ' + r.N + ' ' + esc(niceName(r.giftName)) + (r.P != null ? ' · giá cuối ' + fmt(r.P) + '/' + esc(pUnit(d)) : '') + '</div>'; }).join('') : '';
   const rl = rulesOf(d), grpL = rl.filter(isGrpRule), ownL = rl.filter(r => !isGrpRule(r));
+  let alt = '';
+  if (ALT[d.w]) {
+    const a = ALT[d.w], keep = gkOf[d.w], gi = GIFTS.findIndex(g => g.l === a.gifts[0]);
+    gkOf[d.w] = gi; const r = calcQuy(d0, a.f); if (keep == null) delete gkOf[d.w]; else gkOf[d.w] = keep;
+    alt = '<div class="thr-ok">Mua ' + a.f + ' ' + u + ': được chọn 1 ' + esc(a.gifts.map(l => niceName(giftName(l))).join(' hoặc ')) + (!r.miss && r.P != null ? ' · giá cuối ' + fmt(r.P) + '/' + esc(pUnit(d)) : '') + '</div>' + altBtns(d.w, qtyOf[d.w] || 0);
+  }
   const quyAcc = (own, sumOwn, cls) => {
-    own = low + own;
+    own = low + own + alt;
     if (!gsub) return '<div class="' + cls + '">' + own + origBox(rl) + '</div>';
     return accWrap(d, 'q', 'own', 'q', '① Mua riêng sản phẩm này', '', sumOwn, own + origBox(ownL.length ? ownL : rl), 'own') +
       accWrap(d, 'q', 'grp', 'q', '② Mua chung ' + gsub.members.size + ' sản phẩm', '', groupSummary(d, gsub), gb + origBox(grpL), 'own');
