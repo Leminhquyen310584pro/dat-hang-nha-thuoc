@@ -1025,6 +1025,7 @@ body{font-feature-settings:"tnum" 0}
 /* Nhắc còn thiếu bao nhiêu để được tặng thêm (28/11/2026) */
 .nhint{background:#FFF6DF;color:#6B4A00;border-radius:10px;padding:7px 10px;margin:6px 0;font-size:12.5px;font-weight:600;line-height:1.4}.nhint::before{content:"＋ "}.ps-foot .nhint{width:100%;flex-basis:100%;margin:0 0 6px}
 .ps-foot{flex-wrap:wrap}
+.vr-g{font-size:12px;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:8px;background:var(--primary-soft);color:var(--ink)}.vr-g + .vrow{border-top:0}
 
 </style>
 </head>
@@ -1422,7 +1423,14 @@ const VARIANTS = { 179: [
   143: [{ id: 'cm', label: 'Sheer Color Q Choco Mint' }, { id: 'ft', label: 'Sheer Color Q Fruity Tea 2.4g' }, { id: 'ma', label: 'Sheer Color Q Matcha' }, { id: 'mt', label: 'Sheer Color Q Milk Tea 2,4g' },
         { id: 'ot', label: 'Sheer Color Q Oolong Jasmine Tea 2.4g' }, { id: 'st', label: 'Sheer Color Q Strawberry Tea 2,4g' }, { id: 'bb', label: 'Sheer Color Q BESTIE Rabbit 2,4g - A30 limited edition', c: 83700 }],
   144: [{ id: 'a', label: 'Sheer Color Fruit Juice 4g (Anh Dao Do Tuoi)' }, { id: 'b', label: 'Sheer Color Fruit Juice Berry 4g (Do Mong)' }, { id: 'c', label: 'Sheer Color Fruit Juice 4g (Cam Tuoi Tan)' }, { id: 'jh', label: 'Sheer Color Fruit Juice 4g (Hong Dau Diu Ngot)' }],
-  147: [{ id: 'sp', label: 'Lip On Lip Glowy Satin Sunset Peach (Cam Dao) 2,2g' }, { id: 'tr', label: 'Lip On Lip Glowy Satin Terra Red (Do Gach) 2,2g' }] };
+  147: [{ id: 'sp', label: 'Lip On Lip Glowy Satin Sunset Peach (Cam Dao) 2,2g' }, { id: 'tr', label: 'Lip On Lip Glowy Satin Terra Red (Do Gach) 2,2g' }],
+  /* Nhãn REFRE (người dùng gửi ảnh app công ty 28/11/2026, đủ 15 sản phẩm). Nhóm theo dòng; mã công ty: WM8..W/M = Lactone, WM8SW/DE/IL và WR6 = Whitening Perfume, WN5 và WRN3 = Natural.
+     Lưu ý "Lactone Whitening" thuộc LACTONE, không thuộc Whitening. App công ty không có xịt Natural Rosemary. Trường hd = tiêu đề phụ đứng trước mã đó. */
+  188: [{ id: 'msw', hd: 'Xịt 30ml', label: 'Refre Mist Sweetie - Huong Sweetie 30ml' }, { id: 'mde', label: 'Refre Mist Deluxe - Huong Deluxe 30ml' }, { id: 'mil', label: 'Refre Whitening Perfume In Love (Huong Tinh Yeu) 30ml' },
+        { id: 'rsw', hd: 'Lăn 40ml', label: 'Refre Roll On Sweetie - Huong Sweetie 40ml' }, { id: 'rde', label: 'Refre Roll On Deluxe - Huong Deluxe 40ml' }, { id: 'ril', label: 'Lan Refre Whitening Perfume In Love (Huong Tinh Yeu) 40ml' }],
+  189: [{ id: 'mgt', hd: 'Xịt 30ml', label: 'Refre Mist Natural Green Tea - Huong Tra Xanh 30ml' }, { id: 'mrm', label: 'Refre Natural Rosa Magnolia (Hong Moc Lan) 30ml' }, { id: 'mwo', label: 'Refre Natural Woody (Huong Go) 30ml' },
+        { id: 'rgt', hd: 'Lăn 40ml', label: 'Lan Refre Natural Green Tea - Huong Tra Xanh 40ml' }, { id: 'rrm', label: 'Lan Refre Natural Rosa Magnolia (Hong Moc Lan) 40ml' }, { id: 'rro', label: 'Lan Refre Natural Rosemary - Huong Thao 40ml' }, { id: 'rwo', label: 'Lan Refre Natural Woody (Huong Go) 40ml' }],
+  190: [{ id: 'mo', hd: 'Xịt 30ml', label: 'Xit Refre Lactone Moisturizing 30ml' }, { id: 'wh', label: 'Xit Refre Lactone Whitening 30ml' }] };
 const vqOf = {};   // mã sản phẩm -> { id mã: số lượng }
 const VQ_KEY = 'dat-hang-bienthe-v1';
 const varSum = w => Object.values(vqOf[w] || {}).reduce((a, b) => a + b, 0);
@@ -1443,7 +1451,7 @@ function varBlock(d, n) {
   const rem = n - varSum(d.w);
   return '<div class="vrows"><div class="vr-h">Chọn từng mã để đặt (giá tính theo tổng ' + VARIANTS[d.w].length + ' mã cùng giá)</div>' + VARIANTS[d.w].map(x => {
     const q = (vqOf[d.w] || {})[x.id] || 0;
-    return '<div class="vrow" data-vw="' + d.w + '" data-vid="' + x.id + '"><span class="vr-n">' + esc(x.label) + '<small class="vr-p">' + fmt(x.c || d.c) + '/' + esc(d.u || 'sp') + '</small></span><span class="vr-s"><button type="button" data-vact="-1" aria-label="Giảm ' + esc(x.label) + '"' + (q <= 0 ? ' disabled' : '') + '>−</button>' +
+    return (x.hd ? '<div class="vr-g">' + esc(x.hd) + '</div>' : '') + '<div class="vrow" data-vw="' + d.w + '" data-vid="' + x.id + '"><span class="vr-n">' + esc(x.label) + '<small class="vr-p">' + fmt(x.c || d.c) + '/' + esc(d.u || 'sp') + '</small></span><span class="vr-s"><button type="button" data-vact="-1" aria-label="Giảm ' + esc(x.label) + '"' + (q <= 0 ? ' disabled' : '') + '>−</button>' +
       '<input type="number" inputmode="numeric" min="0" step="1" value="' + q + '" aria-label="Số lượng ' + esc(x.label) + '"><button type="button" data-vact="1" aria-label="Tăng ' + esc(x.label) + '">+</button></span></div>';
   }).join('') + (rem > 0 ? '<div class="vr-rem">Còn ' + rem + ' ' + esc(d.u || 'sp') + ' chưa chọn mã (cộng vào tổng, tin nhắn ghi "chưa chọn mã")</div>' : '') + '</div>';
 }
