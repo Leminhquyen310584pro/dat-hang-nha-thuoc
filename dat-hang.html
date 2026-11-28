@@ -1058,8 +1058,7 @@ body{font-feature-settings:"tnum" 0}
       <div id="cartSpec" class="cart-spec"></div>
       <div class="cart-sum">
         <div class="row"><span>Tiền hàng</span><b id="sGross">0đ</b></div>
-        <div class="row"><span>Chiết khấu hóa đơn 1%</span><b id="sCk">0đ</b></div>
-        <div class="row"><span>Quà chéo đã trừ</span><b id="sGift">0đ</b></div>
+        <div class="row"><span>Chiết khấu</span><b id="sCk">0đ</b></div>
         <p class="note" id="sNote"></p>
       </div>
       <p class="fine">Giá đã tính CTKM quý và CTKM đặc biệt được cộng cùng quý. Chương trình không cộng quý chỉ tính khi chọn ở thẻ sản phẩm.</p>
@@ -1330,7 +1329,7 @@ function calcQuyRaw(d, F) {
   });
   const units = q + qtyO, denom = units * M;
   const P = denom > 0 && !miss ? (L - cost) / denom : null;
-  return { q, gross, L, pay: L - cost, cost, N, sq, giftName: gname, miss, warn, units, P, gh: og ? og.ty : null, cx, p550: !!g550, alt550 };
+  return { q, gross, L, pay: L, cost, N, sq, giftName: gname, miss, warn, units, P, gh: og ? og.ty : null, cx, p550: !!g550, alt550 };
 }
 
 // Giá cuối (cột P) tính theo ĐƠN VỊ NHỎ NHẤT khi quy cách M > 1 (hộp 10 chai, lốc/pack 3 chai): nhãn "/chai", giá niêm yết quy về 1 chai = c ÷ M
@@ -1794,7 +1793,7 @@ function bothCalc(d, n) {
   const swap = !!(p.stack && p.qg && giftIdx(p.qg) !== '');
   const q = !p.stack ? null : swap ? calcQuyRaw(Object.assign({}, effOf(d), { o: p.qg, n: d.n > 0 ? d.n : 0 }), n) : plain;
   const I = p.ck || 0, sp = r.parts.filter(t => !/^CTKM quý|^CK CTKM quý/.test(t)).map(t => t.replace(/^CK đặc biệt /, 'CK '));
-  const pay = swap ? q.L * (1 - I) : r.L - (q ? q.cost || 0 : 0);
+  const pay = swap ? q.L * (1 - I) : r.L;   // khách trả không trừ giá trị quà
   return { p, name: p.lab || p.title, P: r.P, units: r.units, n: pri && pri.gift ? pri.n * k : 0, gift: pri && pri.gift ? giftName(pri.gift.l) : '', sp, ck: I,
     ckAmt: I > 0 ? r.L / (1 - I) - r.L : 0, swap, qN: q ? q.N : 0, qName: q ? q.giftName : '', pay };
 }
@@ -1853,8 +1852,8 @@ function specCalc(d, p, F) {
     if (q.N > 0) parts.push('CTKM quý: tặng ' + q.N + ' ' + q.giftName);
     (q.cx || []).forEach(x => parts.push('CTKM quý: tặng ' + x.n + ' ' + (x.same ? 'cùng loại' : giftName(x.opt.label))));
   }
-  const units = F + qtyQ + qtyX, denom = units * M, pay = L - costQ - costX;
-  return { F, L, pay, cq: costQ, units, parts, warn, P: !warn && denom > 0 ? pay / denom : null };
+  const units = F + qtyQ + qtyX, denom = units * M, net = L - costQ - costX;   // net: dùng cho giá cuối; khách vẫn trả L
+  return { F, L, pay: L, units, parts, warn, P: !warn && denom > 0 ? net / denom : null };
 }
 const specPriceTxt = (d, r) => r ? (r.P != null ? 'giá cuối ' + fmt(r.P) + '/' + pUnit(d) : 'thiếu giá quà') : '';
 /* ---- Ý 2 (người dùng chọn 19/11/2026): thẻ chương trình trong ngăn = TÊN + nhãn loại + KẾT QUẢ trước, luật nguyên văn gấp sau "Xem điều kiện".
@@ -1937,7 +1936,7 @@ function specBodyHtml(v) {
   let h = lvlTable(d, rows, prog);
   if (n > 0) {
     if (n < need) h += '<div class="tb-now">Đang đặt ' + n + ' ' + u + ': cần thêm ' + (need - n) + ' ' + u + ' để đủ mức.</div>';
-    else { const r = specCalc(d, p, n); h += '<div class="tb-now thr-ok">✓ Đang đặt ' + n + ' ' + u + (r.P != null && !qtys.includes(n) ? ' · giá cuối ' + fmt(r.P) + '/' + pu : '') + ' · trả ' + fmt(r.L - r.cq) + '</div>'; }   /* số mua trùng một dòng thì giá đã có trong bảng */
+    else { const r = specCalc(d, p, n); h += '<div class="tb-now thr-ok">✓ Đang đặt ' + n + ' ' + u + (r.P != null && !qtys.includes(n) ? ' · giá cuối ' + fmt(r.P) + '/' + pu : '') + ' · trả ' + fmt(r.pay) + '</div>'; }   /* số mua trùng một dòng thì giá đã có trong bảng */
   }
   const cr = p.stack && n >= need ? caringOf(d) : null;
   if (cr) { const miss = [['hi', cr.hi], ['lo', cr.lo]].filter(([k, rl]) => rl && !(k === 'hi' && isCaringRule(rl)) && caringSuat(d, n, rl) > 0 && !(cxOf[d.w] || {})[k]);
@@ -2913,7 +2912,7 @@ function renderCart() {
   const addLine = (d, html) => { const k = brandLabel(d); if (!byBrand.has(k)) byBrand.set(k, []);
     /* vuốt dòng sang trái để hiện Sửa / Xóa (mẫu 24, người dùng chọn 18/11/2026) */
     byBrand.get(k).push('<div class="swr"><div class="swa"><button type="button" class="sw-e" data-swedit="' + d.w + '">Sửa</button><button type="button" class="sw-x" data-rm="' + d.w + '">Xóa</button></div>' + html + '</div>'); };
-  let gross = 0, pay = 0, gift = 0, cnt = 0, anyMiss = false, anyWarn = '';
+  let gross = 0, pay = 0, cnt = 0, anyMiss = false, anyWarn = '';
   const MC = claimMap();   // các nhóm đơn hỗn hợp đang dùng
   MC.groups.forEach(g => {
     const sm = mixSummary(g.res), bits = sm.gifts.map(x => 'tặng ' + x).concat(sm.cks);
@@ -2944,7 +2943,7 @@ function renderCart() {
     }
     const both = bothCalc(d, n), shownP = both ? both.P : r.P;
     const linePay = both ? both.pay : r.pay, qN = both ? both.qN : r.N, qName = both ? both.qName : r.giftName;
-    gross += r.gross; pay += linePay; gift += both && (both.swap || !both.p.stack) ? 0 : r.cost;
+    gross += r.gross; pay += linePay;
     if (r.miss) anyMiss = true;
     if (r.warn) anyWarn = r.warn;
     let g = '';
@@ -2984,10 +2983,9 @@ function renderCart() {
   syncFilters();
   updateSbh();
   renderMixCart();
-  const disc = gross - pay - gift;     // chiết khấu hóa đơn 1% và CK quý (không gồm quà)
+  const disc = gross - pay;     // chiết khấu hóa đơn 1%, CK quý và CK đặc biệt
   $('sGross').textContent = fmt(gross);
   $('sCk').textContent = '−' + fmt(Math.max(0, disc));
-  $('sGift').textContent = gift > 0 ? '−' + fmt(gift) : '0đ';
   $('sPay').textContent = fmt(pay);
   $('mCount').textContent = cnt > 0 ? cnt + ' sản phẩm' : 'Chưa chọn';
   $('cartTot').textContent = cnt > 0 ? cnt + ' sản phẩm · ' + fmt(pay) : '';
@@ -2999,7 +2997,7 @@ function renderCart() {
   let note = '';
   if (anyMiss) note = 'Chưa tính đủ: thiếu giá quà chéo, xem dòng đỏ.';
   else if (anyWarn) note = anyWarn + '.';
-  else if (cnt) note = 'Giá quà tặng cùng loại không trừ tiền; quà chéo trừ theo giá công ty.';
+  else if (cnt) note = 'Tổng thanh toán là tiền khách trả sau chiết khấu. Quà không trừ vào tiền, chỉ tính vào giá cuối.';
   $('sNote').textContent = note;
 }
 
