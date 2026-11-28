@@ -2755,7 +2755,7 @@ function msUpdate() {
   $('msCond').innerHTML = mixCondHtml(msCur);
   $('msHint').textContent = msCur.kind === 'q' ? 'CTKM quý · tiền hàng của nhóm cộng lại để đủ mốc' : 'CTKM đặc biệt · ' + (msCur.stack ? 'cộng CTKM quý' : 'KHÔNG cộng CTKM quý') + (msCur.cum ? ' · cộng dồn nhiều đơn' : '');
   { const has = !!mixResult(msCur), open = msListOpen || !has, t = $('msToggle');
-    t.hidden = !has; t.textContent = open ? 'Ẩn danh sách sản phẩm ⌃' : 'Chọn thêm sản phẩm (' + msCur.members.size + ' loại) ⌄'; t.setAttribute('aria-expanded', String(open));
+    t.hidden = !has; t.textContent = open ? 'Ẩn danh sách sản phẩm ⌃' : 'Chọn thêm sản phẩm ⌄'; t.setAttribute('aria-expanded', String(open));
     $('msQ').hidden = !open; $('msList').hidden = !open; }
   const fr = mixResult(msCur);   // thanh đáy luôn thấy: tổng thanh toán của nhóm + nút dùng giá / xem đơn
   const cmpFoot = !!fr && fr.kind !== 'p' && fr.lines.length >= 2 && mixOk(fr);   // đã có hai ô "Ghép đơn | Tính riêng" thì không lặp dòng tổng
