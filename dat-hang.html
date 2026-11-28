@@ -2367,8 +2367,10 @@ const DW = {}; DATA.forEach(d => { DW[d.w] = d; });
 const MIX_ANY = {
   'COMBO SELSUN T10+11 – Nhóm 2': { rows: [35, 36], free: [35, 36] },   // DG Selsun 50ml hoặc Dầu xả Selsun
   'CTKM OXY 5 – OXY 10 T11+12': { rows: [22, 23], free: [23, 22] },       // tặng 1 Oxy 10 hoặc 1 Oxy 5
-  'CTKM DEEP HEAT T10+11': { rows: [16, 17], free: [17] }                 // tặng 1 Extra Deep Heat
+  'CTKM DEEP HEAT T10+11': { rows: [16, 17], free: [17], match: /bất kỳ/i }   // tặng 1 Extra Deep Heat + CK 5%; chương trình riêng "Extra Deep Heat CK 8%" giữ nguyên
 };
+// điều kiện (dòng PROGS) nào được gộp vào nhóm ghép
+const mixAnyHit = (any, cond, w) => any.rows.includes(w) && (!any.match || any.match.test(cond));
 const openMix = new Set();     // thanh mốc đang mở rộng ("Xem tất cả mốc")
 function brandLabel(d) { const k = brandOf(d); return k.charAt(0) === '@' ? k.slice(1).replace(/^\d+[A-Z]?\.\s*/, '').toUpperCase() : k; }
 function rewardOf(text) { const m = /(?:→|==>|=>)\s*(.*)$/.exec(String(text || '')); return m ? m[1].replace(/\s+/g, ' ').trim() : ''; }
@@ -2390,11 +2392,11 @@ function allSubs() {
     if (/^pack/i.test(g.name)) return;   // pack: không có mốc gộp đơn
     const any = MIX_ANY[g.name];
     if (any) {
-      const first = Object.keys(g.conds).find(cond => g.conds[cond].ws.some(w => any.rows.includes(w))), c = first && g.conds[first];
+      const first = Object.keys(g.conds).find(cond => g.conds[cond].ws.some(w => mixAnyHit(any, cond, w))), c = first && g.conds[first];
       if (c) out.push({ id: k + '#any', kind: 'd', prog: k, name: g.name, e: g.e, stack: g.stack, reward: rewardOf(first), cond: c.full || first, full: c.full || first, cum: false, weight: {}, thr: c.F, tk: 'qty', members: new Set(any.rows) });
     }
     Object.keys(g.conds).forEach((cond, ci) => {
-      const c = any ? { F: g.conds[cond].F, ws: g.conds[cond].ws.filter(w => !any.rows.includes(w)), full: g.conds[cond].full } : g.conds[cond];
+      const c = any ? { F: g.conds[cond].F, ws: g.conds[cond].ws.filter(w => !mixAnyHit(any, cond, w)), full: g.conds[cond].full } : g.conds[cond];
       if (!c.ws.length) return;
       const tm = /ĐH từ\s*([\d.]+)\s*đ/i.exec(cond);
       const base = { kind: 'd', prog: k, name: g.name, e: g.e, stack: g.stack, reward: rewardOf(cond), cond, full: c.full || cond, cum: /cộng dồn/i.test(cond), weight: {} };
@@ -2608,7 +2610,11 @@ function mixPinfoResult(sub, usedWs) {
     gross: lines.reduce((a, l) => a + l.gross, 0), pay: lines.reduce((a, l) => a + l.pay, 0), warn: lines.some(l => l.miss) ? 'Thiếu giá quà của CTKM quý' : null };
 }
 function mixProgResult(sub, usedWs) {
-  const first = PROGS.find(p => 'p' + p.num + ':' + p.title === sub.prog);
+  /* chỉ lấy dòng chương trình đúng điều kiện của nhóm này (một chương trình có thể có nhiều điều kiện khác CK) */
+  const anyC = sub.id.endsWith('#any') ? MIX_ANY[sub.name] : null;
+  const ofProg = PROGS.filter(p => 'p' + p.num + ':' + p.title === sub.prog);
+  const mine = ofProg.filter(p => anyC ? mixAnyHit(anyC, p.cond, p.w) : (p.full || p.cond) === sub.full || p.cond === sub.cond);
+  const first = (mine.length ? mine : ofProg)[0];
   if (!first) return null;
   const d0 = DW[first.w], pri = progPrimaryO(d0, first);
   let T = 0;
@@ -2623,14 +2629,19 @@ function mixProgResult(sub, usedWs) {
   const bought = choices.filter(w => usedWs.includes(w));
   const freeW = choices.includes(mixPick['f' + sub.id]) ? mixPick['f' + sub.id] : (bought.length === 1 ? bought[0] : choices[0]);
   const freeN = freeW ? suat * ((pri && pri.same) ? pri.n : 1) : 0;
-  const V = usedWs.reduce((a, w) => a + qtyOf[w] * DW[w].c, 0), factor = freeN > 0 ? V / (V + freeN * DW[freeW].c) : 1;
+  /* Quà KHÁC loại (sản phẩm tặng không nằm trong đơn) thì trừ GIÁ TẶNG CHÉO của sản phẩm tặng (người dùng 28/11/2026); chưa có giá chéo thì báo thiếu giá, không tự điền.
+     Quà cùng loại (sản phẩm tặng đang mua) thì chia theo tiền như trên. */
+  const crossGift = freeN > 0 && !usedWs.includes(freeW);
+  const crossG = crossGift ? GIFTS.find(g => g.ty === 'x' && norm(giftName(g.l)) === norm(giftName((sameGiftOf(DW[freeW]) || {}).l || ''))) : null;
+  const V = usedWs.reduce((a, w) => a + qtyOf[w] * DW[w].c, 0), factor = freeN > 0 && !crossGift ? V / (V + freeN * DW[freeW].c) : 1;
   let giftN = 0, giftLabel = '', giftPrice = null, warn = null;
   if (pri && !pri.same && pri.n > 0 && !(any && pri.gift && !/GÓI/i.test(pri.gift.l))) {   // quà là sản phẩm trong danh sách thì đã tính ở freeN
     giftN = suat * pri.n; giftLabel = pri.gift ? giftName(pri.gift.l).replace(/^18 /, '') : 'gói DG Selsun 5ml';
     giftPrice = pri.gift && pri.gift.p != null ? pri.gift.p : pri.price;
     if (giftN > 0 && !(giftPrice > 0)) warn = 'Thiếu giá quà ' + giftLabel;
   }
-  const giftValue = giftN * (giftPrice || 0);
+  if (crossGift && !(crossG && crossG.p > 0) && !warn) warn = 'Thiếu giá quà tặng chéo ' + shortName(DW[freeW]);
+  const giftValue = giftN * (giftPrice || 0) + (crossGift && crossG ? freeN * (crossG.p || 0) : 0);
   /* Chương trình ghi "được áp dụng đồng thời với CT Quý" (stack, không đổi quà quý qg) thì CỘNG luật nhóm của CTKM quý (vd Hada Labo dòng Caring 900k, 450k): dùng đúng mixRuleResult
      cho các sản phẩm thuộc một luật nhóm; sản phẩm không thuộc luật nhóm nào giữ cách tính quà quý riêng từng dòng như cũ (người dùng bảo 25/11/2026) */
   const rqWs = usedWs.filter(w => !(PROGS.find(x => x.w === w && 'p' + x.num + ':' + x.title === sub.prog) || first).qg);   // đổi quà quý (son thường của Lipcare) thì không dùng luật nhóm
@@ -2638,7 +2649,7 @@ function mixProgResult(sub, usedWs) {
   if (rq && rq.warn && !warn) warn = rq.warn;
   const lines = usedWs.map(w => {
     const d = effOf(DW[w]), q = qtyOf[w], gross = q * d.c, G = d.gp || 0;
-    const p = PROGS.find(x => x.w === w && 'p' + x.num + ':' + x.title === sub.prog) || first, H = p.stack ? (d.h || 0) : 0;
+    const p = mine.find(x => x.w === w) || first, H = p.stack ? (d.h || 0) : 0;
     const rl = rq && rq.cards.some(c => c.r.members.includes(w)) ? rq.lines.find(x => x.d.w === w) : null;
     if (rl) {
       const Lr = rl.L * (1 - ck), alloc2 = T > 0 ? giftValue * (gross * (1 - G)) / T : 0, M2 = d.m || 1;
