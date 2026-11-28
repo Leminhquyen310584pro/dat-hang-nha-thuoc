@@ -1018,6 +1018,10 @@ body{font-feature-settings:"tnum" 0}
 .gbox.q{background:var(--quy-soft)}.gbox.q h5{color:var(--quy-ink)}.gbox.s{background:#FDEBEE}.gbox.s h5{color:var(--dbt-ink)}
 .gbox .rs-gift{background:none;padding:3px 0;margin:0;border-radius:0;color:var(--ink)}.gbox .rs-gift small{color:var(--muted)}.gbox .rs-pick{margin-top:4px}
 .ms-btns{flex:none}.ms-btns .ms-apbtn{white-space:nowrap}
+/* ghi chú đạt thêm CTKM đặc biệt trong ngăn Đơn hỗn hợp */
+.mx-also{background:#FDEBEE;border-radius:12px;padding:8px 10px;margin:8px 0 2px;font-size:13px}
+.mx-also>b{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--dbt-ink);margin-bottom:2px}
+.mx-al{font-weight:700}.mx-al small{font-weight:500;color:var(--muted)}.mx-al .linkbtn{font-size:13px;margin-left:4px}
 
 </style>
 </head>
@@ -2582,6 +2586,30 @@ function mixResultHtml(sub) {
   return '<div class="ms-res">' + rows.join('') + '</div>';
 }
 // Dòng trạng thái đầu ngăn: đủ / chưa đủ mốc, thanh, và câu "thêm bao nhiêu nữa thì được gì" (chỉ nói khi mua thêm THẬT SỰ được thêm: CK % không nhân theo suất)
+/* Ghi chú "đạt cả CTKM đặc biệt" trong ngăn Đơn hỗn hợp để không sót khi báo khách (người dùng bảo 28/11/2026): chỉ chương trình CỘNG được với CTKM quý.
+   Quà không quy ra tiền: đếm theo cả đơn (như tin Zalo). Chương trình có CK/quà tính vào giá: chỉ nhắc ở màn CTKM quý, vì giá màn này chưa gồm. */
+function mixAlsoHtml(sub) {
+  const used = [...sub.members].filter(w => (qtyOf[w] || 0) > 0 && DW[w]);
+  if (!used.length) return '';
+  const out = [];
+  PINFO.forEach((x, i) => {
+    if (sub.id === 'i' + i || !x.stack || daysLeft(x.e) < 0 || !(x.mo > 0) || !x.rows.some(w => used.includes(w))) return;
+    const money = x.dv === 'đ'; let t = 0;
+    x.rows.forEach(w => { const q = qtyOf[w] || 0, d = DW[w]; if (q > 0 && d) t += money ? q * cNet(d) : q; });
+    const k = Math.floor(t / x.mo + 1e-9); if (k < 1) return;
+    const miss = x.bb && !DATA.some(d => (qtyOf[d.w] || 0) > 0 && norm(d.t).includes(norm(String(x.bb).replace(/^1\s*/, ''))));
+    out.push('<div class="mx-al">' + (miss ? '⚠ Thêm ' + esc(x.bb) + ' để được ' + esc(x.ten) : 'Tặng ' + (x.max ? Math.min(k, x.max) : k) + ' ' + esc(x.ten) + ' <small>· không đổi giá</small>') + '</div>');
+  });
+  if (sub.kind === 'q') {
+    const seen = new Set();
+    allSubs().forEach(s => {
+      if (s.kind !== 'd' || s.id.charAt(0) === 'i' || !s.stack || !subLive(s) || seen.has(s.prog) || !used.some(w => s.members.has(w)) || !subStat(s).ok) return;
+      seen.add(s.prog);
+      out.push('<div class="mx-al">' + esc(mixHead(s).label.replace(/^CTKM\s+/i, '')) + ': ' + esc(s.reward) + ' <small>· giá dưới chưa gồm</small> <button type="button" class="linkbtn" data-mxo="' + esc(s.id) + '">Xem ›</button></div>');
+    });
+  }
+  return out.length ? '<div class="mx-also"><b>＋ Đạt cả CTKM đặc biệt</b>' + out.join('') + '</div>' : '';
+}
 function mixStatusHtml(sub) {
   const st = subStat(sub), r = mixResult(sub);
   let hint = '';
@@ -2747,7 +2775,7 @@ function mixApplyHtml(s) {
   const box = (label, value, sel, attr) => '<button type="button" class="mf-way' + (sel ? ' on' : '') + '" aria-pressed="' + sel + '"' + (sel ? '' : ' ' + attr + '="' + esc(s.id) + '"') + '><span>' + (sel ? '✓ ' : '') + label + '</span><b>' + fmt(value) + '</b></button>';
   let note = '';
   if (clash.length) note = 'Có sản phẩm đang tính ở nhóm ' + clash.map(c => mixTitleO(c)).join(', ') + '. Bấm "Ghép đơn" để chuyển sang nhóm này.';
-  else if (on && res.pay >= sepPay - 0.5 && mixBetter(res)) note = 'Ghép trả nhiều hơn nhưng giá cuối từng loại thấp hơn.';
+  else if (on && res.pay > sepPay + 0.5 && mixBetter(res)) note = 'Ghép trả nhiều hơn nhưng giá cuối từng loại thấp hơn.';
   else if (!on && !mixOptOut.has(s.id) && !mixBetter(res)) note = 'Tính riêng từng loại đang lợi hơn.';
   else if (on) note = msNote;
   return '<div class="mf-ways">' + box('Ghép đơn', res.pay, on, 'data-mxon') + box('Tính riêng', sepPay, !on, 'data-mxoff') + '</div>' +
@@ -2771,7 +2799,7 @@ function msUpdate() {
         '<button type="button" class="mp-change" data-mxpg="1">Thu gọn ▴</button>';
     }
   } else $('msPick').innerHTML = '';
-  $('msStrip').innerHTML = mixStatusHtml(msCur);
+  $('msStrip').innerHTML = mixStatusHtml(msCur) + mixAlsoHtml(msCur);
   $('msRes').innerHTML = mixResultHtml(msCur);
   $('msCond').innerHTML = mixCondHtml(msCur);
   $('msHint').textContent = msCur.kind === 'q' ? 'CTKM quý · tiền hàng của nhóm cộng lại để đủ mốc' : 'CTKM đặc biệt · ' + (msCur.stack ? 'cộng CTKM quý' : 'KHÔNG cộng CTKM quý') + (msCur.cum ? ' · cộng dồn nhiều đơn' : '');
